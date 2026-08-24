@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bonus Control · ALC Transportes</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <aside class="sidebar">
+      <div class="brand"><img src="alc-logo.png" alt="ALC Pereira Filho Transportes" /><span>bonus<br /><b>control</b></span></div>
+      <nav>
+        <p class="nav-label">VISÃO GERAL</p>
+        <a class="nav-link active" data-view="dashboard" href="#dashboard">◈ <span>Dashboard</span></a>
+        <a class="nav-link" data-view="rotas" href="#rotas">⌁ <span>Rotas</span><b class="nav-count" id="routeNavCount">—</b></a>
+        <a class="nav-link" data-view="bases" href="#bases">⌖ <span>Bases</span><b class="nav-count" id="baseNavCount">—</b></a>
+        <p class="nav-label spaced">GESTÃO</p>
+        <a class="nav-link" data-view="regras" href="#regras">⊙ <span>Regras de bônus</span></a>
+        <a class="nav-link" data-view="importar" href="#importar">↑ <span>Importar dados</span></a>
+      </nav>
+      <div class="sidebar-foot"><span class="status-dot"></span> Dados de julho carregados<br /><small>Fonte: aba Geral</small></div>
+    </aside>
+    <main class="main">
+      <header class="topbar"><div><p class="eyebrow">BONIFICAÇÃO · OPERAÇÃO</p><h1 id="pageTitle">Frota Fixa <span>/</span> visão mensal</h1></div><div class="top-actions"><select id="monthSelect"><option>Julho 2026</option><option disabled>Agosto 2026 · aguardando dados</option></select><button class="icon-button" id="globalSearchButton" title="Focar busca">⌕</button><div class="avatar">WS</div></div></header>
+      <div id="app" class="view-container"><div class="loading">Carregando dados de julho…</div></div>
+      <footer>ALC Pereira Filho Transportes <span>·</span> Bonus Control <span>·</span> Frota Fixa <span>·</span> v0.2</footer>
+    </main>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

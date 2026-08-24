@@ -1,0 +1,12 @@
+import fs from 'node:fs/promises';
+const path='app.js';
+let source=await fs.readFile(path,'utf8');
+const tick=String.fromCharCode(96);
+source=source.replace("ff.toLocaleString('pt-BR'),"+tick+"${total.toLocaleString('pt-BR')} rotas FF", "total.toLocaleString('pt-BR'),"+tick+"${ff.toLocaleString('pt-BR')} rotas FF elegíveis");
+const builder='build_july_ff_workbook.mjs';
+let workbookSource=await fs.readFile(builder,'utf8');
+workbookSource=workbookSource.replace("'Rotas totais','Rotas FF elegíveis'","'Rotas FF totais','Rotas FF elegíveis'");
+workbookSource=workbookSource.replace("['Base','Rotas totais','Rotas FF'","['Base','Rotas FF totais','Rotas FF'");
+workbookSource=workbookSource.replace("r.rota,r.cluster,r.veiculo", "r.rota,(r.cluster ? `'${r.cluster}` : ''),r.veiculo");
+await fs.writeFile(builder,workbookSource);
+await fs.writeFile(path,source);

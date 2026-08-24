@@ -1,0 +1,211 @@
+{
+  "output": "C:\\Users\\Wesley\\Documents\\Dev Alc\\Projetos\\bonificacao-dispatcher\\outputs\\thread-01\\Rotas 1 a 31 Julho DDS preenchida.xlsx",
+  "sheet": "Geral",
+  "column": "AB",
+  "filled": 26289,
+  "unmatched": 139,
+  "ambiguous": [
+    {
+      "row": 3545,
+      "date": "2026-07-04",
+      "motorista": "SAMUEL PINHO DOS SANTOS",
+      "rota": "403654987",
+      "candidates": [
+        [
+          "403425471",
+          99.01
+        ],
+        [
+          "403627351",
+          73.74
+        ]
+      ]
+    },
+    {
+      "row": 14566,
+      "date": "2026-07-17",
+      "motorista": "LUCAS HENRIQUE RODRIGUES COSTA",
+      "rota": "410260082",
+      "candidates": [
+        [
+          "409911811",
+          98.51
+        ],
+        [
+          "410160521",
+          100
+        ]
+      ]
+    },
+    {
+      "row": 22679,
+      "date": "2026-07-21",
+      "motorista": "JONATHAN LIMA GONCALVES",
+      "rota": "412117805",
+      "candidates": [
+        [
+          "411705610",
+          100
+        ],
+        [
+          "411946046",
+          52.54
+        ]
+      ]
+    },
+    {
+      "row": 25464,
+      "date": "2026-07-31",
+      "motorista": "TIAGO BENTO CELESTINO LOURENCO",
+      "rota": "416918678",
+      "candidates": [
+        [
+          "416902445",
+          100
+        ],
+        [
+          "417224536",
+          100
+        ]
+      ]
+    },
+    {
+      "row": 26152,
+      "date": "2026-07-31",
+      "motorista": "ALLYSON CLEMENTINO MOTA",
+      "rota": "417118066",
+      "candidates": [
+        [
+          "417123316",
+          100
+        ],
+        [
+          "417304861",
+          95.77
+        ]
+      ]
+    }
+  ],
+  "unmatched_sample": [
+    {
+      "row": 48,
+      "date": "2026-07-01",
+      "motorista": "RYAN JOSE ARVASIA MARTINS",
+      "rota": 401627185
+    },
+    {
+      "row": 360,
+      "date": "2026-07-01",
+      "motorista": "KLEBERSON DA CUNHA",
+      "rota": 401592962
+    },
+    {
+      "row": 567,
+      "date": "2026-07-01",
+      "motorista": "ROGERIO DA SILVA POUSO ALEGRE",
+      "rota": 401838683
+    },
+    {
+      "row": 779,
+      "date": "2026-07-01",
+      "motorista": "KAICK PHILLIPE XAVIER LOPES",
+      "rota": 401986691
+    },
+    {
+      "row": 1050,
+      "date": "2026-07-02",
+      "motorista": "KAICK PHILLIPE XAVIER LOPES",
+      "rota": 402186597
+    },
+    {
+      "row": 1143,
+      "date": "2026-07-02",
+      "motorista": "GUSTAVO FELIPE QUEIROZ SILVA/PATRICIA BERTOLDINI TROIANO NASCIMENTO",
+      "rota": 402077250
+    },
+    {
+      "row": 1165,
+      "date": "2026-07-02",
+      "motorista": "EDUARDO MACEDO SOUZA/LUANA GONZAGA CAROLA",
+      "rota": 402086581
+    },
+    {
+      "row": 1313,
+      "date": "2026-07-02",
+      "motorista": "KLEBERSON DA CUNHA",
+      "rota": 402165961
+    },
+    {
+      "row": 1355,
+      "date": "2026-07-02",
+      "motorista": "MATHEUS NASCIMENTO SILVA",
+      "rota": 402329509
+    },
+    {
+      "row": 1356,
+      "date": "2026-07-02",
+      "motorista": "ROGERIO DA SILVA CORDOVIL",
+      "rota": 402311911
+    },
+    {
+      "row": 1370,
+      "date": "2026-07-02",
+      "motorista": "ROGERIO DA SILVA POUSO ALEGRE",
+      "rota": 402361219
+    },
+    {
+      "row": 1459,
+      "date": "2026-07-02",
+      "motorista": "PEDRO DA COSTA E SILVA/AMANDA RIMOLI LOURENCO",
+      "rota": 402435216
+    },
+    {
+      "row": 1600,
+      "date": "2026-07-02",
+      "motorista": "AFONSO CELSO SOARES MORAES FILHO",
+      "rota": 402548035
+    },
+    {
+      "row": 1795,
+      "date": "2026-07-03",
+      "motorista": "KLEBERSON DA CUNHA",
+      "rota": 402733570
+    },
+    {
+      "row": 1939,
+      "date": "2026-07-03",
+      "motorista": "LETICIA CAROLINE TROIANO NASCIMENTO",
+      "rota": 402675365
+    },
+    {
+      "row": 2008,
+      "date": "2026-07-03",
+      "motorista": "CRISTIANO HENRIQUE SILVA PEREIRA",
+      "rota": 402856490
+    },
+    {
+      "row": 2210,
+      "date": "2026-07-03",
+      "motorista": "ROGERIO DA SILVA POUSO ALEGRE",
+      "rota": 402929563
+    },
+    {
+      "row": 2242,
+      "date": "2026-07-03",
+      "motorista": "FILIPE CHAVES OLIVEIRA/CLEITON ARRIATE",
+      "rota": 402676478
+    },
+    {
+      "row": 2500,
+      "date": "2026-07-03",
+      "motorista": "KAICK PHILLIPE XAVIER LOPES",
+      "rota": 403072482
+    },
+    {
+      "row": 2545,
+      "date": "2026-07-03",
+      "motorista": "MATHEUS NASCIMENTO SILVA",
+      "rota": 403149083
+    }
+  ]
+}
