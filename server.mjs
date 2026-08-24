@@ -112,6 +112,24 @@ async function persistImport(payload) {
   } finally { client.release(); }
 }
 
+async function latestImports() {
+  if (!pool) return {sources: {}};
+  const result = await pool.query(`
+    WITH latest AS (
+      SELECT DISTINCT ON (source_type) id, source_type, file_name, imported_at
+      FROM import_batches
+      WHERE source_type IN ('DDS','MERCADO_LIVRE','LOGICA_FF','FF_LOCADORA')
+      ORDER BY source_type, imported_at DESC, id DESC
+    )
+    SELECT l.source_type, l.file_name, l.imported_at,
+           COALESCE(json_agg(r.data ORDER BY r.record_key) FILTER (WHERE r.data IS NOT NULL), '[]'::json) AS rows
+    FROM latest l
+    LEFT JOIN import_records r ON r.batch_id = l.id
+    GROUP BY l.source_type, l.file_name, l.imported_at
+  `);
+  return {sources: Object.fromEntries(result.rows.map(row => [row.source_type, {fileName: row.file_name, importedAt: row.imported_at, rows: row.rows}]))};
+}
+
 const server = createServer(async (req, res) => {
   const pathname = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`).pathname;
   if (pathname === '/health') {
@@ -127,6 +145,11 @@ const server = createServer(async (req, res) => {
   if (pathname === '/api/imports' && req.method === 'POST') {
     try { sendJson(res, 201, await persistImport(await readJson(req))); }
     catch (error) { sendJson(res, error.message === 'payload-too-large' ? 413 : 500, {error: error.message}); }
+    return;
+  }
+  if (pathname === '/api/imports/latest' && req.method === 'GET') {
+    try { sendJson(res, 200, await latestImports()); }
+    catch (error) { sendJson(res, 500, {error: error.message}); }
     return;
   }
   const file = safePath(pathname);
