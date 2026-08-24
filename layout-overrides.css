@@ -47,10 +47,25 @@ nav a { font-size: 13px; }
 .lower-grid .ranking-card:nth-child(2) .data-table th:nth-child(5) { width: 15%; }
 .lower-grid .ranking-card:nth-child(2) .data-table th:nth-child(6) { width: 18%; }
 
+.risk-grid { align-items: stretch; }
+.risk-card { min-width: 0; overflow: hidden; }
+.risk-card .card-head { gap: 12px; flex-wrap: wrap; }
+.risk-card .secondary-button { flex-shrink: 0; }
+.risk-card .data-table { width: 100%; table-layout: fixed; }
+.risk-card .data-table th,
+.risk-card .data-table td { overflow-wrap: anywhere; }
+.risk-card .data-table th:nth-child(1) { width: 7%; }
+.risk-card .data-table th:nth-child(2) { width: 27%; }
+.risk-card .data-table th:nth-child(3) { width: 15%; }
+.risk-card .data-table th:nth-child(4) { width: 19%; }
+.risk-card .data-table th:nth-child(5) { width: 16%; }
+.risk-card .data-table th:nth-child(6) { width: 16%; }
+.risk-card .bad-count { color: #dc7272; }
+
 @media (max-width: 1050px) {
   .main { max-width: none; }
   .lower-grid > .card { overflow: visible; }
-  .lower-grid .data-table { table-layout: auto; }
+  .lower-grid .data-table, .risk-card .data-table { table-layout: auto; }
 }
 @media (max-width: 600px) {
   .top-actions { gap: 7px; }
