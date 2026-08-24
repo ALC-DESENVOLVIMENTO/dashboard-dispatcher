@@ -78,7 +78,7 @@ with ZipFile(path) as z:
   if not r.get('A'): continue
   date_serial=str(r.get('B','')).strip(); plate=plate_norm(r.get('C')); reserve_hit=bool(reserve_by_date_plate.get((date_serial,plate)))
   cluster=norm(r.get('K'))
-  if norm(r.get('F')) == 'RENTALS' or reserve_hit or cluster == 'ROTA': continue
+  if (norm(r.get('F')) == 'RENTALS' and not reserve_hit) or cluster == 'ROTA': continue
   base=r.get('A'); a=spot_agg[base]; a['base']=base; a['total']+=1; a['ff']+=1
   try: ds=float(str(r.get('AB','')).replace(',','.'))
   except: ds=None
