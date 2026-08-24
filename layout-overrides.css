@@ -3,6 +3,10 @@ body { font-size: 14px; }
 .mode-switch { display: inline-flex; gap: 0; border: 1px solid var(--line); border-radius: 7px; padding: 3px; background: #fff; }
 .mode-button { border: 0; background: transparent; color: #858692; border-radius: 5px; padding: 8px 11px; font: 700 11px Manrope; cursor: pointer; white-space: nowrap; }
 .mode-button.active { background: var(--purple); color: #fff; }
+.spot-thresholds { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+.spot-threshold { border: 1px solid var(--line); border-radius: 6px; padding: 8px 9px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.spot-threshold span { color: #aaaab3; font: 500 9px 'DM Mono'; white-space: nowrap; }
+.spot-threshold strong { color: var(--ink); font-size: 11px; white-space: nowrap; }
 nav a { font-size: 13px; }
 .sidebar-foot { font-size: 11px; }
 .topbar h1 { font-size: 22px; }
