@@ -1,5 +1,8 @@
 /* Leitura e encaixe dos painéis do dashboard */
 body { font-size: 14px; }
+.mode-switch { display: inline-flex; gap: 0; border: 1px solid var(--line); border-radius: 7px; padding: 3px; background: #fff; }
+.mode-button { border: 0; background: transparent; color: #858692; border-radius: 5px; padding: 8px 11px; font: 700 11px Manrope; cursor: pointer; white-space: nowrap; }
+.mode-button.active { background: var(--purple); color: #fff; }
 nav a { font-size: 13px; }
 .sidebar-foot { font-size: 11px; }
 .topbar h1 { font-size: 22px; }
@@ -28,4 +31,9 @@ nav a { font-size: 13px; }
   .main { max-width: none; }
   .lower-grid > .card { overflow: visible; }
   .lower-grid .data-table { table-layout: auto; }
+}
+@media (max-width: 600px) {
+  .top-actions { gap: 7px; }
+  .mode-button { padding: 7px 8px; font-size: 10px; }
+  .mode-switch { order: 2; }
 }

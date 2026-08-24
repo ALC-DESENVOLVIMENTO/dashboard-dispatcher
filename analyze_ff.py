@@ -72,4 +72,22 @@ with ZipFile(path) as z:
  print(json.dumps({'bases':len(out),'rows':len(data),'ff_rows':sum(a['ff'] for a in out),'ambulance':sum(a['ambulance'] for a in out),'top':out[:10],'bottom':out[-10:]},ensure_ascii=False,indent=2))
  Path(r'C:\Users\Wesley\Documents\Dev Alc\Projetos\bonificacao-dispatcher\outputs\thread-01\ff_summary.json').write_text(json.dumps(out,ensure_ascii=False),encoding='utf-8')
  Path(r'C:\Users\Wesley\Documents\Dev Alc\Projetos\bonificacao-dispatcher\outputs\thread-01\ff_routes.json').write_text(json.dumps(ff_routes,ensure_ascii=False),encoding='utf-8')
+ spot_agg=defaultdict(lambda:{'base':'','total':0,'ff':0,'ambulance':0,'ff_ds_sum':0,'ff_ds_n':0,'all_ds_sum':0,'all_ds_n':0})
+ spot_routes=[]
+ for r in data:
+  if not r.get('A'): continue
+  date_serial=str(r.get('B','')).strip(); plate=plate_norm(r.get('C')); reserve_hit=bool(reserve_by_date_plate.get((date_serial,plate)))
+  cluster=norm(r.get('K'))
+  if norm(r.get('F')) == 'RENTALS' or reserve_hit or cluster == 'ROTA': continue
+  base=r.get('A'); a=spot_agg[base]; a['base']=base; a['total']+=1; a['ff']+=1
+  try: ds=float(str(r.get('AB','')).replace(',','.'))
+  except: ds=None
+  if ds is not None: a['ff_ds_sum']+=ds; a['ff_ds_n']+=1; a['all_ds_sum']+=ds; a['all_ds_n']+=1
+  spot_routes.append({'base':base,'data_serial':r.get('B',''),'placa':r.get('C',''),'rota':r.get('J',''),'cluster':r.get('K',''),'veiculo':r.get('AI') or r.get('H'),'ds':ds if ds is not None else 0,'contrato':r.get('F',''),'source_type':'SPOT','observacao':r.get('AH','')})
+ spot_out=[]
+ for a in spot_agg.values():
+  a['ff_share']=1 if a['total'] else 0; a['ff_ds']=a['ff_ds_sum']/a['ff_ds_n'] if a['ff_ds_n'] else 0; a['all_ds']=a['all_ds_sum']/a['all_ds_n'] if a['all_ds_n'] else 0; spot_out.append(a)
+ spot_out.sort(key=lambda x:x['ff_ds'],reverse=True)
+ Path(r'C:\Users\Wesley\Documents\Dev Alc\Projetos\bonificacao-dispatcher\outputs\thread-01\spot_summary.json').write_text(json.dumps(spot_out,ensure_ascii=False),encoding='utf-8')
+ Path(r'C:\Users\Wesley\Documents\Dev Alc\Projetos\bonificacao-dispatcher\outputs\thread-01\spot_routes.json').write_text(json.dumps(spot_routes,ensure_ascii=False),encoding='utf-8')
  Path(r'C:\Users\Wesley\Documents\Dev Alc\Projetos\bonificacao-dispatcher\outputs\thread-01\reserve_lookup.json').write_text(json.dumps(reserve_records,ensure_ascii=False),encoding='utf-8')
