@@ -73,7 +73,11 @@ async function readJson(req, maxBytes = 60 * 1024 * 1024) {
 
 function recordKey(row, index) {
   const value = row?.['Rota Logistics'] ?? row?.['ROTA LOGISTICS'] ?? row?.rotaLogistics ?? row?.rotalogistics ?? row?.rota;
-  const raw = String(value ?? '').trim() || JSON.stringify(row) || String(index);
+  const date = row?.Data ?? row?.data ?? row?.Date ?? row?.date ?? row?.['Data da rota'] ?? '';
+  const plate = row?.PLACA ?? row?.Placa ?? row?.placa ?? row?.Plate ?? row?.plate ?? '';
+  const delivery = row?.['ID Entrega'] ?? row?.idEntrega ?? row?.identrega ?? row?.Pedido ?? row?.pedido ?? row?.shipment ?? '';
+  const route = String(value ?? '').trim();
+  const raw = delivery ? `${route}|${date}|${plate}|${delivery}` : route ? `${route}|${date}|${plate}` : JSON.stringify(row) || String(index);
   return createHash('sha256').update(raw.toUpperCase()).digest('hex');
 }
 
