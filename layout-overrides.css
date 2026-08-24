@@ -10,6 +10,7 @@ body { font-size: 14px; }
 .spot-threshold label { color: var(--muted); font-size: 10px; white-space: nowrap; }
 .spot-value { width: 92px; border: 1px solid var(--line); border-radius: 5px; background: var(--surface); color: var(--ink); padding: 6px 7px; font: 600 11px 'DM Mono', monospace; }
 .spot-value:focus { outline: 2px solid rgba(110,92,255,.22); border-color: var(--purple); }
+.spot-save-row { display: flex; justify-content: flex-end; margin-top: 14px; }
 nav a { font-size: 13px; }
 .sidebar-foot { font-size: 11px; }
 .topbar h1 { font-size: 22px; }
