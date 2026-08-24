@@ -19,6 +19,10 @@ body { font-size: 14px; }
 .spot-rule-table th:first-child, .spot-rule-table td:first-child { text-align: left; }
 .spot-rule-table td { padding: 9px 8px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
 .spot-rule-table td:not(:first-child) { font-weight: 600; }
+.route-pagination { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 14px; color: var(--muted); font-size: 11px; }
+.route-pagination > div { display: flex; gap: 8px; }
+.route-pagination button:disabled { opacity: .45; cursor: not-allowed; }
+@media (max-width: 650px) { .route-pagination { align-items: stretch; flex-direction: column; } .route-pagination > div { justify-content: space-between; } }
 nav a { font-size: 13px; }
 .sidebar-foot { font-size: 11px; }
 .topbar h1 { font-size: 22px; }
