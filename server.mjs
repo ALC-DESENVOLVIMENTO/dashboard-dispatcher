@@ -124,7 +124,7 @@ async function latestImports() {
     SELECT l.source_type, l.file_name, l.imported_at,
            COALESCE(json_agg(r.data ORDER BY r.record_key) FILTER (WHERE r.data IS NOT NULL), '[]'::json) AS rows
     FROM latest l
-    LEFT JOIN import_records r ON r.batch_id = l.id
+    LEFT JOIN import_records r ON r.source_type = l.source_type
     GROUP BY l.source_type, l.file_name, l.imported_at
   `);
   return {sources: Object.fromEntries(result.rows.map(row => [row.source_type, {fileName: row.file_name, importedAt: row.imported_at, rows: row.rows}]))};
