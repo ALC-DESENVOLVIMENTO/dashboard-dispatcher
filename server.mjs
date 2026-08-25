@@ -14,6 +14,7 @@ const maxInvoiceFile = 10 * 1024 * 1024;
 const maxRows = 200_000;
 const authCookieName = 'bonus_control_session';
 const authSessionTtlSeconds = Math.min(86400, Math.max(900, Number(process.env.AUTH_SESSION_TTL_SECONDS || 28800)));
+const runDbMigrations = !isProduction || process.env.DB_RUN_MIGRATIONS === 'true';
 const allowedSources = new Set(['DDS', 'MERCADO_LIVRE', 'LOGICA_FF', 'FF_LOCADORA']);
 const xptBases = new Set(['ARAPUTANGA - EMR14', 'ARAXA - EMG34', 'CACERES - EMR6', 'CHAPADAO DO SUL - EGO17', 'CONCEICAO DO MATO DENTRO - EMG26', 'GUANHAES - EMG37', 'GUAXUPE - EMG7', 'MINACU - EDF10', 'MOZARLANDIA - EGO11', 'PONTES E LACERDA - EMR16', 'SANTO ANTONIO DA PLATINA - EPR7'].map(value => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase()));
 const publicFiles = new Set(['index.html', 'styles.css', 'layout-overrides.css', 'app.js', 'alc-logo.png', 'login.html', 'login.js']);
@@ -235,6 +236,6 @@ async function routeRequest(req, res) {
 
 const server = createServer((req, res) => { securityHeaders(res); req.setTimeout(30000); routeRequest(req, res).catch(error => sendError(res, error, req.requestId || randomUUID())); });
 server.headersTimeout = 15000; server.requestTimeout = 60000; server.keepAliveTimeout = 5000;
-async function start() { if (pool) pool.on('error', error => console.error(JSON.stringify({event: 'database-pool-error', message: error.message}))); try { await initDatabase(); } catch (error) { console.error(JSON.stringify({event: 'database-initialization-failed', message: error.message})); } server.listen(port, '0.0.0.0', () => console.log(`Dashboard listening on ${port}${pool ? '' : ' (database unavailable)'}`)); }
+async function start() { if (pool) pool.on('error', error => console.error(JSON.stringify({event: 'database-pool-error', message: error.message}))); if (pool && runDbMigrations) { try { await initDatabase(); } catch (error) { console.error(JSON.stringify({event: 'database-initialization-failed', message: error.message})); } } server.listen(port, '0.0.0.0', () => console.log(`Dashboard listening on ${port}${pool ? '' : ' (database unavailable)'}`)); }
 export { allowedBonusCents, bonusCents, decodeBase64, normalizeRow, publicPath, recordKey, safeFileName };
 if (process.argv[1] && resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url))) start();
