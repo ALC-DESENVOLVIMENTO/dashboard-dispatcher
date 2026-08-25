@@ -46,7 +46,7 @@ setInterval(() => { const cutoff = Date.now() - 600000; for (const [key, value] 
 function securityHeaders(res) {
   res.setHeader('X-Content-Type-Options', 'nosniff'); res.setHeader('X-Frame-Options', 'DENY'); res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()'); res.setHeader('Cross-Origin-Opener-Policy', 'same-origin'); res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
-  res.setHeader('Content-Security-Policy', ["default-src 'self'", "script-src 'self' https://cdn.sheetjs.com", "style-src 'self' 'unsafe-inline'", "img-src 'self' data:", "connect-src 'self'", "font-src 'self' data:", "object-src 'none'", "base-uri 'self'", "form-action 'self'", "frame-ancestors 'none'"].join('; '));
+  res.setHeader('Content-Security-Policy', ["default-src 'self'", "script-src 'self' https://cdn.sheetjs.com", "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com", "img-src 'self' data:", "connect-src 'self'", "font-src 'self' data: https://fonts.gstatic.com", "object-src 'none'", "base-uri 'self'", "form-action 'self'", "frame-ancestors 'none'"].join('; '));
   if (isProduction) res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
 }
 function sendJson(res, status, body, requestId) { if (requestId) res.setHeader('X-Request-Id', requestId); res.setHeader('content-type', 'application/json; charset=utf-8'); res.statusCode = status; res.end(JSON.stringify(body)); }
