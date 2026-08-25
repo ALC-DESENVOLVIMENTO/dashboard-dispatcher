@@ -137,6 +137,7 @@ nav a { font-size: 13px; }
 .comparison-kpi strong { display: block; margin: 7px 0 3px; font-size: 24px; color: #20202c; }
 .comparison-positive { color: #169b73; }
 .comparison-negative { color: #e35d66; }
+.period-switching #app { opacity: .72; pointer-events: none; transition: opacity .12s ease; }
 .comparison-filterbar { justify-content: flex-end; margin-top: 16px; }
 .comparison-table th, .comparison-table td { white-space: nowrap; }
 @media (max-width: 900px) { .comparison-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
