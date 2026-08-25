@@ -32,3 +32,30 @@ O agrupamento mensal por base é recalculado no navegador. Para produção, o pr
 ## Executar
 
 Abra `index.html` no navegador. Não há dependências de build nesta primeira versão.
+
+## Segurança e produção
+
+O painel agora exige autenticação de gerência antes de servir o dashboard e os dados
+operacionais. O usuário único desta primeira fase é configurado no Railway por
+`AUTH_USERNAME` e `AUTH_PASSWORD_HASH`; a senha nunca fica no frontend. As sessões usam
+cookie `HttpOnly`, `Secure` em produção, `SameSite=Strict`, expiração e invalidação no
+logout. As APIs também validam a sessão no backend, portanto esconder botões não é a
+proteção.
+
+Em produção, mantenha `ADMIN_MUTATIONS_ENABLED=true` e `ADMIN_READ_ENABLED=true` somente
+com o login configurado e, preferencialmente, atrás de VPN, rede privada ou proxy com
+allowlist. `ADMIN_IP_ALLOWLIST` deve conter os IPs públicos autorizados e `APP_ORIGIN`
+somente a origem oficial do painel. Sem esses requisitos, importações, equipes, notas
+fiscais e arquivamentos permanecem bloqueados.
+
+O servidor agora limita payloads e requisições, valida linhas e arquivos, usa consultas
+parametrizadas, registra auditoria, torna importações idempotentes, arquiva dados em vez
+de apagá-los fisicamente e não publica arquivos internos do projeto. O valor da nota
+fiscal é recalculado no servidor a partir das rotas, Mercado Livre, LOGICA FF, cadastro
+FF/Locadora e equipe persistidos; o valor enviado pelo navegador é apenas conferência.
+
+As variáveis necessárias estão exemplificadas em `.env.example`. Nunca commit credenciais
+ou arquivos `.env`; em Railway, use as variáveis protegidas do serviço e um usuário de
+banco com permissões somente nas tabelas da aplicação. A aplicação cria a tabela de
+sessões na migração inicial para manter compatibilidade com o ambiente atual; depois de
+aplicar e validar a migração, retire permissões DDL do usuário da aplicação.

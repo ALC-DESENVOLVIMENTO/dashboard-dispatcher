@@ -2,3 +2,15 @@ node_modules/
 *.log
 __pycache__/
 .DS_Store
+.env
+.env.*
+!.env.example
+*.bak
+*.backup
+*.dump
+*.sql
+*.sqlite
+*.sqlite3
+*.pem
+*.key
+*.p12
