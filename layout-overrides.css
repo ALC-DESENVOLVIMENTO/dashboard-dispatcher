@@ -45,11 +45,13 @@ nav a { font-size: 13px; }
 .lower-grid .data-table { width: 100%; table-layout: fixed; }
 .lower-grid .data-table th,
 .lower-grid .data-table td { overflow-wrap: anywhere; }
+.lower-grid .ranking-card:nth-child(2) .data-table th:nth-child(1) { width: 8%; }
 .lower-grid .ranking-card:nth-child(2) .data-table th:nth-child(2) { width: 15%; }
-.lower-grid .ranking-card:nth-child(2) .data-table th:nth-child(3) { width: 31%; }
-.lower-grid .ranking-card:nth-child(2) .data-table th:nth-child(4) { width: 10%; }
-.lower-grid .ranking-card:nth-child(2) .data-table th:nth-child(5) { width: 15%; }
-.lower-grid .ranking-card:nth-child(2) .data-table th:nth-child(6) { width: 18%; }
+.lower-grid .ranking-card:nth-child(2) .data-table th:nth-child(3) { width: 25%; }
+.lower-grid .ranking-card:nth-child(2) .data-table th:nth-child(4) { width: 21%; }
+.lower-grid .ranking-card:nth-child(2) .data-table th:nth-child(5) { width: 8%; }
+.lower-grid .ranking-card:nth-child(2) .data-table th:nth-child(6) { width: 10%; }
+.lower-grid .ranking-card:nth-child(2) .data-table th:nth-child(7) { width: 13%; }
 
 .risk-grid { align-items: stretch; }
 .risk-card { min-width: 0; overflow: hidden; }
@@ -58,12 +60,19 @@ nav a { font-size: 13px; }
 .risk-card .data-table { width: 100%; table-layout: fixed; }
 .risk-card .data-table th,
 .risk-card .data-table td { overflow-wrap: anywhere; }
-.risk-card .data-table th:nth-child(1) { width: 7%; }
-.risk-card .data-table th:nth-child(2) { width: 27%; }
-.risk-card .data-table th:nth-child(3) { width: 15%; }
-.risk-card .data-table th:nth-child(4) { width: 19%; }
-.risk-card .data-table th:nth-child(5) { width: 16%; }
-.risk-card .data-table th:nth-child(6) { width: 16%; }
+.risk-grid .risk-card:first-child .data-table th:nth-child(1) { width: 7%; }
+.risk-grid .risk-card:first-child .data-table th:nth-child(2) { width: 30%; }
+.risk-grid .risk-card:first-child .data-table th:nth-child(3) { width: 14%; }
+.risk-grid .risk-card:first-child .data-table th:nth-child(4) { width: 17%; }
+.risk-grid .risk-card:first-child .data-table th:nth-child(5) { width: 15%; }
+.risk-grid .risk-card:first-child .data-table th:nth-child(6) { width: 17%; }
+.risk-grid .risk-card:nth-child(2) .data-table th:nth-child(1) { width: 7%; }
+.risk-grid .risk-card:nth-child(2) .data-table th:nth-child(2) { width: 15%; }
+.risk-grid .risk-card:nth-child(2) .data-table th:nth-child(3) { width: 25%; }
+.risk-grid .risk-card:nth-child(2) .data-table th:nth-child(4) { width: 21%; }
+.risk-grid .risk-card:nth-child(2) .data-table th:nth-child(5) { width: 10%; }
+.risk-grid .risk-card:nth-child(2) .data-table th:nth-child(6) { width: 11%; }
+.risk-grid .risk-card:nth-child(2) .data-table th:nth-child(7) { width: 11%; }
 .risk-card .bad-count { color: #dc7272; }
 
 @media (max-width: 1050px) {
