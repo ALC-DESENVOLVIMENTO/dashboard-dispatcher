@@ -103,6 +103,67 @@ function recordKey(row, index) {
   return createHash('sha256').update(raw.toUpperCase()).digest('hex');
 }
 
+function importPeriod(value) {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return `${value.getUTCFullYear()}-${String(value.getUTCMonth() + 1).padStart(2, '0')}`;
+  const text = String(value ?? '').trim();
+  if (!text) return '';
+  const iso = text.match(/^(\d{4})[-/](\d{1,2})/);
+  if (iso) return `${iso[1]}-${String(Number(iso[2])).padStart(2, '0')}`;
+  const slash = text.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})/);
+  if (slash) return `${slash[3]}-${String(Number(slash[2])).padStart(2, '0')}`;
+  const parsed = new Date(text);
+  return Number.isNaN(parsed.getTime()) ? '' : `${parsed.getUTCFullYear()}-${String(parsed.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
+function importedRowPeriod(row) {
+  const preferred = Object.entries(row || {}).filter(([key]) => {
+    const normalized = String(key).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    return normalized === 'data' || normalized === 'date' || normalized.includes('datadarota') || normalized.includes('datadodispatch') || normalized.includes('datadispatch');
+  });
+  for (const [, value] of preferred) {
+    const period = importPeriod(value);
+    if (period) return period;
+  }
+  return '';
+}
+
+async function importPeriodSummary(period) {
+  if (!pool) return {period, sources: {}};
+  const result = await pool.query("SELECT source_type, record_key, data FROM import_records WHERE source_type = ANY($1::text[])", [['DDS', 'MERCADO_LIVRE', 'LOGICA_FF']]);
+  const sources = {};
+  for (const row of result.rows) {
+    if (importedRowPeriod(row.data) !== period) continue;
+    const source = sources[row.source_type] || {records: 0, keys: []};
+    source.records++;
+    source.keys.push(row.record_key);
+    sources[row.source_type] = source;
+  }
+  return {period, sources: Object.fromEntries(Object.entries(sources).map(([source, value]) => [source, {records: value.records}]))};
+}
+
+async function removeImportPeriod(period) {
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(period)) throw new Error('period-required');
+  if (!pool) throw new Error('database-not-configured');
+  const result = await pool.query("SELECT source_type, record_key, data FROM import_records WHERE source_type = ANY($1::text[])", [['DDS', 'MERCADO_LIVRE', 'LOGICA_FF']]);
+  const grouped = {};
+  for (const row of result.rows) {
+    if (importedRowPeriod(row.data) !== period) continue;
+    (grouped[row.source_type] ||= []).push(row.record_key);
+  }
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    for (const [source, keys] of Object.entries(grouped)) {
+      if (keys.length) await client.query('DELETE FROM import_records WHERE source_type=$1 AND record_key=ANY($2::text[])', [source, keys]);
+    }
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally { client.release(); }
+  return {period, removed: Object.fromEntries(Object.entries(grouped).map(([source, keys]) => [source, keys.length]))};
+}
+
 async function persistImport(payload) {
   if (!pool) throw new Error('database-not-configured');
   const rows = Array.isArray(payload.rows) ? payload.rows : [];
@@ -245,6 +306,17 @@ const server = createServer(async (req, res) => {
   if (pathname === '/api/imports/latest' && req.method === 'GET') {
     try { sendJson(res, 200, await latestImports()); }
     catch (error) { sendJson(res, 500, {error: error.message}); }
+    return;
+  }
+  if (pathname === '/api/imports/period-summary' && req.method === 'GET') {
+    const period = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`).searchParams.get('period') || '';
+    try { sendJson(res, 200, await importPeriodSummary(period)); }
+    catch (error) { sendJson(res, 400, {error: error.message}); }
+    return;
+  }
+  if (pathname === '/api/imports/remove-period' && req.method === 'POST') {
+    try { sendJson(res, 200, await removeImportPeriod(String((await readJson(req, 1024)).period || '').trim())); }
+    catch (error) { sendJson(res, 400, {error: error.message}); }
     return;
   }
   if (pathname === '/api/teams' && req.method === 'GET') {
