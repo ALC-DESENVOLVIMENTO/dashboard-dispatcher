@@ -43,9 +43,9 @@ logout. As APIs também validam a sessão no backend, portanto esconder botões 
 proteção.
 
 Em produção, mantenha `ADMIN_MUTATIONS_ENABLED=true` e `ADMIN_READ_ENABLED=true` somente
-com o login configurado e, preferencialmente, atrás de VPN, rede privada ou proxy com
-allowlist. `ADMIN_IP_ALLOWLIST` deve conter os IPs públicos autorizados e `APP_ORIGIN`
-somente a origem oficial do painel. Sem esses requisitos, importações, equipes, notas
+com o login configurado. `ADMIN_IP_ALLOWLIST` é opcional: vazio ou `*` permite gerentes
+autenticados de qualquer rede; quando preenchido, restringe por IP. `APP_ORIGIN` deve
+conter somente a origem oficial do painel. Sem login válido, importações, equipes, notas
 fiscais e arquivamentos permanecem bloqueados.
 
 O servidor agora limita payloads e requisições, valida linhas e arquivos, usa consultas
