@@ -142,3 +142,25 @@ nav a { font-size: 13px; }
 .comparison-table th, .comparison-table td { white-space: nowrap; }
 @media (max-width: 900px) { .comparison-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 560px) { .comparison-kpis { grid-template-columns: 1fr; } .base-header-actions { justify-content: flex-start; } }
+
+.upload-status { display: none; align-items: flex-start; gap: 9px; margin-top: 10px; padding: 9px 11px; border: 1px solid #e6e2f4; border-radius: 8px; background: #faf9ff; color: var(--muted, #7d7890); }
+.upload-status.visible { display: flex; animation: upload-status-in .22s ease both; }
+.upload-status-icon { width: 22px; height: 22px; flex: 0 0 22px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; background: #ece9ff; color: var(--purple, #6f63e9); font-weight: 800; }
+.upload-status.loading .upload-status-icon { animation: upload-pulse 1s ease-in-out infinite; }
+.upload-status.success { border-color: #ccefe1; background: #f1fcf7; color: #198c6b; }
+.upload-status.success .upload-status-icon { background: #d9f7eb; color: #159a72; }
+.upload-status.error { border-color: #f5d5d8; background: #fff5f5; color: #cc5a65; }
+.upload-status.error .upload-status-icon { background: #ffe2e4; color: #d45763; }
+.upload-status-copy { min-width: 0; flex: 1; }
+.upload-status-copy strong, .upload-status-copy small { display: block; }
+.upload-status-copy strong { color: inherit; font-size: 10px; }
+.upload-status-copy small { margin-top: 2px; font-size: 9px; color: var(--muted, #7d7890); }
+.upload-progress-track { display: block; height: 4px; margin-top: 7px; overflow: hidden; border-radius: 999px; background: #ebe8fa; }
+.upload-progress-fill { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #6f63e9, #9c91ff); transition: width .18s ease; }
+.upload-status.success .upload-progress-fill { background: linear-gradient(90deg, #2bb88a, #80d7b6); }
+.upload-status.error .upload-progress-fill { background: linear-gradient(90deg, #e26973, #f1a2a8); }
+.upload-status.visible .upload-progress-fill { min-width: 2px; }
+.team-person > .upload-status { grid-column: 1 / -1; margin-top: 0; }
+.dropzone > .upload-status { width: min(100%, 520px); margin-left: auto; margin-right: auto; }
+@keyframes upload-status-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes upload-pulse { 0%, 100% { transform: scale(1); opacity: .75; } 50% { transform: scale(1.08); opacity: 1; } }
