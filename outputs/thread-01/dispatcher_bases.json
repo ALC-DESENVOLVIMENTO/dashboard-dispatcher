@@ -1,0 +1,382 @@
+{
+  "sourceFile": "Dispatcher's e Bases.xlsx",
+  "bases": {
+    "ARACATUBA SSP10": {
+      "base": "ARAÇATUBA - SSP10",
+      "coordinator": "THAYS GONÇALVES",
+      "dispatchers": [
+        "TAUANE LOPES PEDÃO",
+        "VINICIUS AMORIM ZENERATO"
+      ]
+    },
+    "ARAPUTANGA EMR14": {
+      "base": "ARAPUTANGA - EMR14",
+      "coordinator": "FELIPE BORGES",
+      "dispatchers": [
+        "FELIPE DOS SANTOS LIBRAO",
+        "JOSIMAR GASPAR DE OLIVEIRA"
+      ]
+    },
+    "ARAXA EMG34": {
+      "base": "ARAXÁ - EMG34",
+      "coordinator": "BRUNO HUNGRIA",
+      "dispatchers": [
+        "MATHEUS GOMES SBRANA",
+        "WILKINA RAFAELA MARTINS AFONSO"
+      ]
+    },
+    "VOLTA REDONDA SRJ3": {
+      "base": "VOLTA REDONDA - SRJ3",
+      "coordinator": "MARCELO ORNELAS",
+      "dispatchers": [
+        "JONATAS ALVES DO NASCIMENTO",
+        "KARINA DA SILVA DE OLIVEIRA SIMEÃO",
+        "RENAN OLIVEIRA NASCIMENTO"
+      ]
+    },
+    "BARRETOS SSP31": {
+      "base": "BARRETOS - SSP31",
+      "coordinator": "VIVIANE PANSANI",
+      "dispatchers": [
+        "EDUARDA GREGORIO MARCHI",
+        "JESSICA SCALLER DOS SANTOS CARDOSO"
+      ]
+    },
+    "BARUERI SSP5": {
+      "base": "BARUERI - SSP5",
+      "coordinator": "ALEX CORUJA",
+      "dispatchers": [
+        "BRUNO ANTONIO FRANÇA SILVA",
+        "Natália Marques Costa da Silva",
+        "DAIANI DOS SANTOS BATISTA PEREIRA",
+        "CLEITON CARDOSO DA SILVA"
+      ]
+    },
+    "BAURU SSP14": {
+      "base": "BAURU - SSP14",
+      "coordinator": "VIVIANE PANSANI",
+      "dispatchers": [
+        "GABRIELY DE OLIVERIA PEREIRA MENDONÇA",
+        "TATIANA SAGGIORO DA SILVA"
+      ]
+    },
+    "CACERES EMR6": {
+      "base": "CÁCERES - EMR6",
+      "coordinator": "FELIPE BORGES",
+      "dispatchers": [
+        "ADRIANA ROSA CASTRO",
+        "SHIRLEY PERCIANO COSTA"
+      ]
+    },
+    "CAMPO GRANDE SRJ6": {
+      "base": "CAMPO GRANDE - SRJ6",
+      "coordinator": "MARCELO ORNELAS",
+      "dispatchers": [
+        "JOÃO VICTOR FRANÇA DE BRITO MOREIRA",
+        "LUIZA FIGUEIRAS FREITAS DOS ANJOS"
+      ]
+    },
+    "CAMPOS DOS GOYTACAZES SRJ4": {
+      "base": "CAMPOS DOS GOYTACAZES - SRJ4",
+      "coordinator": "MARCELO ORNELAS",
+      "dispatchers": [
+        "ELIENAY CRISTINA DONNA RODRIGUES",
+        "JOSICLEIA DA COSTA DE OLIVEIRA DA SILVA",
+        "LUIZ FERNANDO DOS SANTOS SILVA"
+      ]
+    },
+    "CHAPADAO DO SUL EGO17": {
+      "base": "CHAPADÃO DO SUL - EGO17",
+      "coordinator": "FELIPE BORGES",
+      "dispatchers": [
+        "CLECIO NATANAEL SILVA DE LIMA",
+        "GABRIEL SANTANA FAVA"
+      ]
+    },
+    "CONCEICAO DO MATO DENTRO EMG26": {
+      "base": "CONCEIÇÃO DO MATO DENTRO - EMG26",
+      "coordinator": "FELIPE BORGES",
+      "dispatchers": [
+        "DIEGO RODRIGUES DA SILVA",
+        "FABIANA BATISTA DA SILVA"
+      ]
+    },
+    "CONTAGEM SMG1": {
+      "base": "CONTAGEM - SMG1",
+      "coordinator": "ITHALO DINIZ",
+      "dispatchers": [
+        "ARTHUR GOMES MARQUES DE ALMEIDA",
+        "GUSTAVO ALEXANDER FERREIRA",
+        "LETICIA MULLER DA SILVA TAVARES",
+        "MAIKON GEOVANE LEITE SANTOS",
+        "TAMARA CRISTINA DA SILVA ROSA",
+        "TAYNARA ALVES RODRIGUES"
+      ]
+    },
+    "CORDOVIL SRJ1": {
+      "base": "CORDOVIL - SRJ1",
+      "coordinator": "MARCELO ORNELAS",
+      "dispatchers": [
+        "CARLA LADEIRA CORTES DE SOUZA",
+        "LARISSA DE CASTRO RODRIGUES JORGE",
+        "LETÍCIA KOJUCH MONTEIRO PEREIRA",
+        "MARIA EDUARDA DE MORAES"
+      ]
+    },
+    "CUIABA SMR1": {
+      "base": "CUIABÁ - SMR1",
+      "coordinator": "THAYS GONÇALVES",
+      "dispatchers": [
+        "CARLOS HENRIQUE OLIVEIRA DA SILVA",
+        "CAROLINE DA SILVA NASCIMENTO",
+        "HELEN CRISTINA FERREIRA DE AZEVEDO",
+        "JUCIELY DA SILVA CRUZ",
+        "WALTER AUGUSTO DOS SANTOS MACIEL",
+        "RAYSSA PEREIRA DE OLIVEIRA MARQUES"
+      ]
+    },
+    "GOIANIA SGO1": {
+      "base": "GOIANIA - SGO1",
+      "coordinator": "VIVIANE PANSANI",
+      "dispatchers": [
+        "GUSTAVO BARBOSA ALMEIDA",
+        "JOSARELA GALVÃO DE ALMEIDA",
+        "JOYCE BRITTO MODENES",
+        "KATIELLY SILVA PINHEIRO DO COUTO",
+        "LEANDRO DA CONCEICAO GOMES",
+        "Patrícia Fernandes de Oliveira"
+      ]
+    },
+    "GUANHAES EMG37": {
+      "base": "GUANHAES - EMG37",
+      "coordinator": "FELIPE BORGES",
+      "dispatchers": [
+        "GUSTAVO HENRIQUE ROSA DOS SANTOS",
+        "JOÃO PAULO GUIMARÃES"
+      ]
+    },
+    "GUAXUPE EMG7": {
+      "base": "GUAXUPE - EMG7",
+      "coordinator": "BRUNO HUNGRIA",
+      "dispatchers": [
+        "JOSE TAVARES DA SILVA NETO",
+        "MAURICIO MENABO FILHO",
+        "RICARDO DE BARROS VECCHI"
+      ]
+    },
+    "HIDROLANDIA SGO3": {
+      "base": "HIDROLANDIA - SGO3",
+      "coordinator": "VIVIANE PANSANI",
+      "dispatchers": [
+        "Roberto Paulo De Souza Cunha",
+        "WHANNY NASCIMENTO DOS SANTOS"
+      ]
+    },
+    "IPATINGA SMG4": {
+      "base": "IPATINGA - SMG4",
+      "coordinator": "BRUNO HUNGRIA",
+      "dispatchers": [
+        "GABRIELA GOMES DE SOUZA",
+        "PETROLINA JOYCE DE FARIAS NEVES"
+      ]
+    },
+    "ITABORAI SRJ8": {
+      "base": "ITABORAI - SRJ8",
+      "coordinator": "MARCELO ORNELAS",
+      "dispatchers": [
+        "BIANCA FRANÇA DE BRITO MOREIRA",
+        "NILSON DUTRA DE ARAÙJO FILHO",
+        "SAMUEL DE FARIAS",
+        "SANDE HELLEN RODRIGUES PACHECO GABRIEL"
+      ]
+    },
+    "JALES SSP28": {
+      "base": "JALES - SSP28",
+      "coordinator": "VIVIANE PANSANI",
+      "dispatchers": [
+        "BRUNA PASSARELLO VENTURA",
+        "JESSYCA EDUARDA DE OLIVEIRA PRIMO"
+      ]
+    },
+    "MARILIA SSP13": {
+      "base": "MARILIA - SSP13",
+      "coordinator": "VIVIANE PANSANI",
+      "dispatchers": [
+        "ANA CAROLINA PEREIRA DE OLIVEIRA",
+        "DALILEA SILVESTRE FERNANDES",
+        "Nayara Francine Gomes aquino"
+      ]
+    },
+    "MINACU EDF10": {
+      "base": "MINAÇU - EDF10",
+      "coordinator": "THAYS GONÇALVES",
+      "dispatchers": [
+        "CLESIO ALVES DE SOUZA"
+      ]
+    },
+    "MOZARLANDIA EGO11": {
+      "base": "MOZARLANDIA - EGO11",
+      "coordinator": "THAYS GONÇALVES",
+      "dispatchers": [
+        "CLEYTON BORGES CARDOSO JUNIOR"
+      ]
+    },
+    "NOVA LIMA SMG14": {
+      "base": "NOVA LIMA - SMG14",
+      "coordinator": "ITHALO DINIZ",
+      "dispatchers": [
+        "ANA RAFAELA DINIZ GOMES",
+        "FROSTHER RODRIGUES DO CARMO",
+        "RADHARANI FIUZA DE MOURA"
+      ]
+    },
+    "PATOS DE MINAS SMG11": {
+      "base": "PATOS DE MINAS - SMG11",
+      "coordinator": "BRUNO HUNGRIA",
+      "dispatchers": [
+        "CHRYSTIANE YSIS TEIXEIRA SILVESTRE",
+        "THAWANY CAROLINE FERREIRA"
+      ]
+    },
+    "POCOS DE CALDAS SMG5": {
+      "base": "POÇOS DE CALDAS - SMG5",
+      "coordinator": "BRUNO HUNGRIA",
+      "dispatchers": [
+        "EVELYN CRISTINA DA SILVA",
+        "MARLUCE OLIVEIRA ALVES"
+      ]
+    },
+    "PONTES E LACERDA EMR16": {
+      "base": "PONTES E LACERDA - EMR16",
+      "coordinator": "FELIPE BORGES",
+      "dispatchers": [
+        "ALBERTINA MARIA DO ROSARIO NUNES DE SOUZA",
+        "THAYNA MARIA SOUZA DE ALMEIDA"
+      ]
+    },
+    "POUSO ALEGRE SMG3": {
+      "base": "POUSO ALEGRE - SMG3",
+      "coordinator": "BRUNO HUNGRIA",
+      "dispatchers": [
+        "DANIELA APARECIDA DIAS DE OLIVEIRA",
+        "EDIMILSON MAURO PINTO DE FREITAS",
+        "KAMILA DE CASSIA AMADOR DAMAS",
+        "KAYLANE SANTOS DE FREITAS",
+        "TAYNARA BEATRIZ RIBEIRO CARNEIRO"
+      ]
+    },
+    "PRESIDENTE PRUDENTE SSP11": {
+      "base": "PRESIDENTE PRUDENTE - SSP11",
+      "coordinator": "THAYS GONÇALVES",
+      "dispatchers": [
+        "ANA LARA BARBOSA RAYMUNDO",
+        "DIANE CAROLINE MAZZI",
+        "JESSICA FERREIRA DA SILVA"
+      ]
+    },
+    "QUEIMADOS SRJ2": {
+      "base": "QUEIMADOS - SRJ2",
+      "coordinator": "MARCELO ORNELAS",
+      "dispatchers": [
+        "DANIEL BATISTA DE ORNELAS",
+        "GABRIEL SILVA MONTEIRO",
+        "MARIANA CATRINCK GOMES",
+        "ROSEMERY APARECIDA DA CONCEIÇÃO"
+      ]
+    },
+    "RIBEIRAO PRETO SSP57": {
+      "base": "RIBEIRAO PRETO - SSP57",
+      "coordinator": "VIVIANE PANSANI",
+      "dispatchers": [
+        "BRUNA DE OLIVEIRA CAMPOS",
+        "NAYANNE MAYUME DO CARMO"
+      ]
+    },
+    "RIO VERDE SGO2": {
+      "base": "RIO VERDE - SGO2",
+      "coordinator": "THAYS GONÇALVES",
+      "dispatchers": [
+        "ANA VITORIA SILVA DA COSTA",
+        "MARIA VITORIA ESPINDOLA LEMES",
+        "MARYA EDUARDA SOUSA MAXIMO"
+      ]
+    },
+    "SANTO ANTONIO DA PLATINA EPR7": {
+      "base": "SANTO ANTÔNIO DA PLATINA - EPR7",
+      "coordinator": "FELIPE BORGES",
+      "dispatchers": [
+        "ANTONIO AUGUSTO NEGRAO DA SILVA",
+        "HINAYE RAISSA DA ROCHA"
+      ]
+    },
+    "SAO CARLOS SSP22": {
+      "base": "SAO CARLOS - SSP22",
+      "coordinator": "VIVIANE PANSANI",
+      "dispatchers": [
+        "AMANDA CELITA CARNEIRO",
+        "THAIS MOURA"
+      ]
+    },
+    "SAO JOAO DE MERITI SRJ13": {
+      "base": "SAO JOAO DE MERITI - SRJ13",
+      "coordinator": "MARCELO ORNELAS",
+      "dispatchers": [
+        "CASSIANE GOMES DA SILVA",
+        "MATHEUS PINTO VICENTE DA SILVA",
+        "SARAH PEREIRA MACHADO SILVA",
+        "YASMIN PEREIRA DO RIO"
+      ]
+    },
+    "SAO JOSE DO RIO PRETO SSP12": {
+      "base": "SAO JOSE DO RIO PRETO - SSP12",
+      "coordinator": "VIVIANE PANSANI",
+      "dispatchers": [
+        "DANIELA MARIA BALDAN DE MELO",
+        "LEONARDO DOMINGUES LIRA",
+        "LETICIA CAVALCANTE DE MORAIS"
+      ]
+    },
+    "SINOP SMR2": {
+      "base": "SINOP - SMR2",
+      "coordinator": "THAYS GONÇALVES",
+      "dispatchers": [
+        "ALICE DE NAZARÉ FERNANDEZ",
+        "LUANA DO NASCIMENTO FONSECA"
+      ]
+    },
+    "TEOFILO OTONI SMG13": {
+      "base": "TEÓFILO OTONI - SMG13",
+      "coordinator": "BRUNO HUNGRIA",
+      "dispatchers": [
+        "ANDERSON RODRIGUES VIEIRA"
+      ]
+    },
+    "UBERABA SMG12": {
+      "base": "UBERABA - SMG12",
+      "coordinator": "BRUNO HUNGRIA",
+      "dispatchers": [
+        "BRUNA ANTUNES MACIEL",
+        "GEUSA LAMOUNIER FERNANDES"
+      ]
+    },
+    "UBERLANDIA SMG6": {
+      "base": "UBERLANDIA - SMG6",
+      "coordinator": "BRUNO HUNGRIA",
+      "dispatchers": [
+        "CAROLINE MORUM VIEIRA SANTOS",
+        "GABRIELA DA SILVA CAETANO",
+        "RAFAELLA RAMOS MOTA"
+      ]
+    },
+    "VESPASIANO SMG8": {
+      "base": "VESPASIANO - SMG8",
+      "coordinator": "ITHALO DINIZ",
+      "dispatchers": [
+        "CAIO RAFFAEL RIBEIRO FARIA",
+        "GABRIELA CRISTINA RAMOS PINTO",
+        "NATALY FRANCYS GOMES SILVA",
+        "PRISCILA SOUZA SANTANA SPAKOSKY"
+      ]
+    }
+  }
+}

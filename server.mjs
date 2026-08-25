@@ -52,6 +52,28 @@ async function initDatabase() {
     );
     CREATE INDEX IF NOT EXISTS import_records_batch_idx ON import_records(batch_id);
     CREATE INDEX IF NOT EXISTS import_batches_imported_at_idx ON import_batches(imported_at DESC);
+    CREATE TABLE IF NOT EXISTS base_team_configs (
+      base TEXT PRIMARY KEY,
+      coordinator TEXT NOT NULL DEFAULT '',
+      dispatchers JSONB NOT NULL DEFAULT '[]'::jsonb,
+      ff_recipient TEXT NOT NULL DEFAULT '',
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS invoices (
+      id BIGSERIAL PRIMARY KEY,
+      period TEXT NOT NULL,
+      mode TEXT NOT NULL,
+      base TEXT NOT NULL,
+      dispatcher TEXT NOT NULL,
+      file_name TEXT NOT NULL,
+      mime_type TEXT,
+      file_size BIGINT NOT NULL DEFAULT 0,
+      amount NUMERIC(12,2) NOT NULL DEFAULT 0,
+      file_data BYTEA,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(period, mode, base, dispatcher)
+    );
+    CREATE INDEX IF NOT EXISTS invoices_period_idx ON invoices(period, mode, base);
   `);
 }
 
@@ -141,6 +163,57 @@ async function latestImportStatus() {
   return {sources: Object.fromEntries(result.rows.map(row => [row.source_type, {fileName: row.file_name, importedAt: row.imported_at, rowCount: row.row_count}]))};
 }
 
+async function listTeamConfigs() {
+  if (!pool) return {bases: {}};
+  const result = await pool.query('SELECT base, coordinator, dispatchers, ff_recipient FROM base_team_configs ORDER BY base');
+  return {bases: Object.fromEntries(result.rows.map(row => [row.base, {coordinator: row.coordinator, dispatchers: row.dispatchers || [], ffRecipient: row.ff_recipient || ''}]))};
+}
+
+async function saveTeamConfig(payload) {
+  if (!pool) throw new Error('database-not-configured');
+  const base = String(payload.base || '').trim();
+  if (!base) throw new Error('base-required');
+  const coordinator = String(payload.coordinator || '').trim();
+  const dispatchers = Array.isArray(payload.dispatchers) ? payload.dispatchers.map(value => String(value || '').trim()).filter(Boolean) : [];
+  const ffRecipient = String(payload.ffRecipient || '').trim();
+  await pool.query(`INSERT INTO base_team_configs (base,coordinator,dispatchers,ff_recipient,updated_at)
+    VALUES ($1,$2,$3::jsonb,$4,NOW())
+    ON CONFLICT (base) DO UPDATE SET coordinator=EXCLUDED.coordinator,dispatchers=EXCLUDED.dispatchers,ff_recipient=EXCLUDED.ff_recipient,updated_at=NOW()`, [base, coordinator, JSON.stringify(dispatchers), ffRecipient]);
+  return {base, coordinator, dispatchers, ffRecipient};
+}
+
+async function listInvoices() {
+  if (!pool) return {invoices: []};
+  const result = await pool.query('SELECT id, period, mode, base, dispatcher, file_name, mime_type, file_size, amount, created_at FROM invoices ORDER BY created_at DESC, id DESC');
+  return {invoices: result.rows};
+}
+
+async function saveInvoice(payload) {
+  if (!pool) throw new Error('database-not-configured');
+  const period = String(payload.period || '').trim();
+  const mode = ['ff','spot'].includes(String(payload.mode || '').toLowerCase()) ? String(payload.mode).toLowerCase() : '';
+  const base = String(payload.base || '').trim();
+  const dispatcher = String(payload.dispatcher || '').trim();
+  const fileName = String(payload.fileName || 'nota-fiscal').trim().slice(0,255);
+  const amount = Number(payload.amount || 0);
+  if (!/^\d{4}-\d{2}$/.test(period) || !mode || !base || !dispatcher || !payload.fileBase64) throw new Error('invoice-fields-required');
+  const fileData = Buffer.from(payload.fileBase64, 'base64');
+  const result = await pool.query(`INSERT INTO invoices (period,mode,base,dispatcher,file_name,mime_type,file_size,amount,file_data)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+    ON CONFLICT (period,mode,base,dispatcher) DO UPDATE SET file_name=EXCLUDED.file_name,mime_type=EXCLUDED.mime_type,file_size=EXCLUDED.file_size,amount=EXCLUDED.amount,file_data=EXCLUDED.file_data,created_at=NOW()
+    RETURNING id,period,mode,base,dispatcher,file_name,mime_type,file_size,amount,created_at`, [period, mode, base, dispatcher, fileName, payload.mimeType || null, fileData.length, Number.isFinite(amount) ? amount : 0, fileData]);
+  return result.rows[0];
+}
+
+async function downloadInvoice(id, res) {
+  if (!pool) return sendJson(res, 503, {error: 'database-not-configured'});
+  const result = await pool.query('SELECT file_name, mime_type, file_data FROM invoices WHERE id=$1', [id]);
+  if (!result.rowCount) { res.writeHead(404); res.end('Not found'); return; }
+  const row = result.rows[0];
+  res.writeHead(200, {'content-type': row.mime_type || 'application/octet-stream', 'content-disposition': `attachment; filename="${String(row.file_name).replace(/"/g, '')}"`});
+  res.end(row.file_data);
+}
+
 const server = createServer(async (req, res) => {
   const pathname = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`).pathname;
   if (pathname === '/health') {
@@ -166,6 +239,31 @@ const server = createServer(async (req, res) => {
   if (pathname === '/api/imports/latest' && req.method === 'GET') {
     try { sendJson(res, 200, await latestImports()); }
     catch (error) { sendJson(res, 500, {error: error.message}); }
+    return;
+  }
+  if (pathname === '/api/teams' && req.method === 'GET') {
+    try { sendJson(res, 200, await listTeamConfigs()); }
+    catch (error) { sendJson(res, 500, {error: error.message}); }
+    return;
+  }
+  if (pathname === '/api/teams' && req.method === 'POST') {
+    try { sendJson(res, 201, await saveTeamConfig(await readJson(req, 2 * 1024 * 1024))); }
+    catch (error) { sendJson(res, 400, {error: error.message}); }
+    return;
+  }
+  if (pathname === '/api/invoices' && req.method === 'GET') {
+    try { sendJson(res, 200, await listInvoices()); }
+    catch (error) { sendJson(res, 500, {error: error.message}); }
+    return;
+  }
+  if (pathname === '/api/invoices' && req.method === 'POST') {
+    try { sendJson(res, 201, await saveInvoice(await readJson(req, 20 * 1024 * 1024))); }
+    catch (error) { sendJson(res, error.message === 'payload-too-large' ? 413 : 400, {error: error.message}); }
+    return;
+  }
+  const invoiceMatch = pathname.match(/^\/api\/invoices\/(\d+)\/file$/);
+  if (invoiceMatch && req.method === 'GET') {
+    await downloadInvoice(invoiceMatch[1], res);
     return;
   }
   const file = safePath(pathname);
