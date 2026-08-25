@@ -214,6 +214,12 @@ async function downloadInvoice(id, res) {
   res.end(row.file_data);
 }
 
+async function deleteInvoice(id) {
+  if (!pool) throw new Error('database-not-configured');
+  const result = await pool.query('DELETE FROM invoices WHERE id=$1 RETURNING id', [id]);
+  return {deleted: result.rowCount > 0, id: Number(id)};
+}
+
 const server = createServer(async (req, res) => {
   const pathname = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`).pathname;
   if (pathname === '/health') {
@@ -259,6 +265,12 @@ const server = createServer(async (req, res) => {
   if (pathname === '/api/invoices' && req.method === 'POST') {
     try { sendJson(res, 201, await saveInvoice(await readJson(req, 20 * 1024 * 1024))); }
     catch (error) { sendJson(res, error.message === 'payload-too-large' ? 413 : 400, {error: error.message}); }
+    return;
+  }
+  const invoiceDeleteMatch = pathname.match(/^\/api\/invoices\/(\d+)$/);
+  if (invoiceDeleteMatch && req.method === 'DELETE') {
+    try { sendJson(res, 200, await deleteInvoice(invoiceDeleteMatch[1])); }
+    catch (error) { sendJson(res, 400, {error: error.message}); }
     return;
   }
   const invoiceMatch = pathname.match(/^\/api\/invoices\/(\d+)\/file$/);
