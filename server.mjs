@@ -17,7 +17,7 @@ const authSessionTtlSeconds = Math.min(86400, Math.max(900, Number(process.env.A
 const runDbMigrations = !isProduction || process.env.DB_RUN_MIGRATIONS === 'true';
 const allowedSources = new Set(['DDS', 'MERCADO_LIVRE', 'LOGICA_FF', 'FF_LOCADORA']);
 const xptBases = new Set(['ARAPUTANGA - EMR14', 'ARAXA - EMG34', 'CACERES - EMR6', 'CHAPADAO DO SUL - EGO17', 'CONCEICAO DO MATO DENTRO - EMG26', 'GUANHAES - EMG37', 'GUAXUPE - EMG7', 'MINACU - EDF10', 'MOZARLANDIA - EGO11', 'PONTES E LACERDA - EMR16', 'SANTO ANTONIO DA PLATINA - EPR7'].map(value => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase()));
-const publicFiles = new Set(['index.html', 'styles.css', 'layout-overrides.css', 'app.js', 'alc-logo.png', 'favicon.png', 'login.html', 'login.js']);
+const publicFiles = new Set(['index.html', 'styles.css', 'layout-overrides.css', 'period-utils.js', 'app.js', 'alc-logo.png', 'favicon.png', 'login.html', 'login.js']);
 const publicOutputFiles = new Set(['dispatcher_bases.json', 'ff_logic_rows.json', 'ff_logic_summary.json', 'ff_routes.json', 'ff_summary.json', 'fleet_reference.json', 'spot_routes.json', 'spot_summary.json', 'xpt_bases.json']);
 const mime = {'.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8', '.png': 'image/png', '.jpg': 'image/jpeg', '.csv': 'text/csv; charset=utf-8'};
 const { Pool } = pg;
