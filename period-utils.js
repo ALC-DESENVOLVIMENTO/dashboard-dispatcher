@@ -16,6 +16,19 @@
     return day >= range.start && day <= range.end;
   }
 
-  global.BonusPeriod = Object.freeze({ bounds, contains });
+  function utilization(bipped, uniquePlates, days) {
+    const numerator = Number(bipped);
+    const denominator = Number(uniquePlates) * Number(days);
+    return Number.isFinite(numerator) && Number.isFinite(denominator) && denominator > 0 ? numerator / denominator : null;
+  }
+
+  function fixedFleetPlannedDays(monthlyDays, part) {
+    const total = Number(monthlyDays);
+    if (!Number.isFinite(total) || total < 2) return null;
+    const firstPart = Math.floor(total / 2);
+    return part === '2' ? total - firstPart : firstPart;
+  }
+
+  global.BonusPeriod = Object.freeze({ bounds, contains, utilization, fixedFleetPlannedDays });
   if (typeof module !== 'undefined' && module.exports) module.exports = global.BonusPeriod;
 })(globalThis);

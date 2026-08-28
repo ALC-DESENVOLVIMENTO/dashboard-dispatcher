@@ -15,3 +15,11 @@ test('segunda quinzena respeita o último dia de cada mês', () => {
   assert.equal(period.contains('2026-07-16', '2026-07', '2'), true);
   assert.equal(period.contains('2026-08-01', '2026-07', '2'), false);
 });
+
+test('utilização FF usa os dias da quinzena selecionada', () => {
+  assert.equal(period.fixedFleetPlannedDays(26, '1'), 13);
+  assert.equal(period.fixedFleetPlannedDays(26, '2'), 13);
+  assert.equal(period.utilization(101, 7, 13), 101 / 91);
+  assert.equal(period.utilization(101, 7, 26), 101 / 182);
+  assert.equal(period.utilization(0, 0, 15), null);
+});
