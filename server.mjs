@@ -30,14 +30,15 @@ const pool = process.env.DATABASE_URL ? new Pool({
 class HttpError extends Error { constructor(status, code) { super(code); this.status = status; this.code = code; } }
 
 const rateBuckets = new Map();
-const rateLimits = {read: {limit: 120, windowMs: 60000}, mutation: {limit: 10, windowMs: 60000}, import: {limit: 5, windowMs: 600000}, auth: {limit: 10, windowMs: 900000}};
+const rateLimits = {read: {limit: 120, windowMs: 60000}, mutation: {limit: 10, windowMs: 60000}, import: {limit: 5, windowMs: 600000}, auth: {limit: Math.min(300, Math.max(10, Number(process.env.AUTH_RATE_LIMIT_PER_15_MIN || 120))), windowMs: 900000}};
 const memorySessions = new Map();
+let lastSessionCleanupAt = 0;
 function clientIp(req) {
   if (process.env.TRUST_PROXY === 'true') { const forwarded = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim(); if (forwarded) return forwarded.slice(0, 80); }
   return String(req.socket.remoteAddress || 'unknown').slice(0, 80);
 }
 function consumeRateLimit(req, category) {
-  const policy = rateLimits[category] || rateLimits.read, key = `${category}:${clientIp(req)}`, now = Date.now(), current = rateBuckets.get(key);
+  const policy = rateLimits[category] || rateLimits.read, sessionToken = category === 'auth' ? '' : cookieValue(req, authCookieName), identity = /^[A-Za-z0-9_-]{40,}$/.test(sessionToken) ? `session:${sessionHash(sessionToken)}` : `ip:${clientIp(req)}`, key = `${category}:${identity}`, now = Date.now(), current = rateBuckets.get(key);
   if (!current || now - current.startedAt >= policy.windowMs) { rateBuckets.set(key, {startedAt: now, count: 1}); return true; }
   current.count += 1; return current.count <= policy.limit;
 }
@@ -62,23 +63,49 @@ async function readJson(req, maxBytes) { const declared = Number(req.headers['co
 
 function recordKey(row, index) { const value = row?.['Rota Logistics'] ?? row?.['ROTA LOGISTICS'] ?? row?.rotaLogistics ?? row?.rotalogistics ?? row?.rota, date = row?.Data ?? row?.data ?? row?.Date ?? row?.date ?? row?.['Data da rota'] ?? '', plate = row?.PLACA ?? row?.Placa ?? row?.placa ?? row?.Plate ?? row?.plate ?? '', delivery = row?.['ID Entrega'] ?? row?.idEntrega ?? row?.identrega ?? row?.Pedido ?? row?.pedido ?? row?.shipment ?? '', route = String(value ?? '').trim(), raw = delivery ? `${route}|${date}|${plate}|${delivery}` : route ? `${route}|${date}|${plate}` : stableJson(row) || String(index); return createHash('sha256').update(raw.toUpperCase()).digest('hex'); }
 function importPeriod(value) { const text = String(value ?? '').trim(); if (!text) return ''; const iso = text.match(/^(\d{4})[-/](\d{1,2})/); if (iso) return `${iso[1]}-${String(Number(iso[2])).padStart(2, '0')}`; const slash = text.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})/); if (slash) return `${slash[3]}-${String(Number(slash[2])).padStart(2, '0')}`; const parsed = new Date(text); return Number.isNaN(parsed.getTime()) ? '' : `${parsed.getUTCFullYear()}-${String(parsed.getUTCMonth() + 1).padStart(2, '0')}`; }
+function operationPeriod(value) { const match = String(value || '').match(/^(\d{4}-(?:0[1-9]|1[0-2]))(?::([12]))?$/); return match ? {key: match[0], month: match[1], part: match[2] || 'monthly'} : null; }
+function operationPeriodContains(date, selected) { const key = String(date || '').slice(0, 10); if (!selected || !/^\d{4}-\d{2}-\d{2}$/.test(key) || key.slice(0, 7) !== selected.month) return false; const day = Number(key.slice(8, 10)); return selected.part === '1' ? day <= 15 : selected.part === '2' ? day >= 16 : true; }
+function operationPeriodDays(selected) { if (!selected) return 0; if (selected.part === '1') return 15; const [year, month] = selected.month.split('-').map(Number); const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate(); return selected.part === '2' ? Math.max(0, daysInMonth - 15) : daysInMonth; }
 function importedRowPeriod(row) { for (const [key, value] of Object.entries(row || {})) { const normalized = normalizeKey(key); if (normalized === 'data' || normalized === 'date' || normalized.includes('datadarota') || normalized.includes('datadodispatch') || normalized.includes('datadispatch')) { const period = importPeriod(value); if (period) return period; } } return ''; }
 function publicPath(urlPath) { let decoded; try { decoded = decodeURIComponent(urlPath.split('?')[0]); } catch { return null; } const clean = (decoded === '/' ? '/index.html' : decoded).replace(/^\/+/, ''); if (clean.includes('..') || clean.includes('\\') || clean.startsWith('.')) return null; if (publicFiles.has(clean)) return join(root, clean); const prefix = 'outputs/thread-01/'; if (clean.startsWith(prefix) && publicOutputFiles.has(clean.slice(prefix.length))) return join(root, clean); return null; }
 function ipAllowlistAllows(req) { const allowlist = String(process.env.ADMIN_IP_ALLOWLIST || '').split(',').map(value => value.trim()).filter(Boolean); return !allowlist.length || allowlist.includes('*') || allowlist.includes(clientIp(req)); }
 function mutationAllowed(req) { if (!isProduction) return process.env.ADMIN_MUTATIONS_ENABLED !== 'false'; if (process.env.ADMIN_MUTATIONS_ENABLED !== 'true') return false; return ipAllowlistAllows(req); }
 function privateAdminReadAllowed(req) { if (!isProduction) return true; if (process.env.ADMIN_READ_ENABLED !== 'true') return false; return ipAllowlistAllows(req); }
 function cookieValue(req, name) { const cookies = String(req.headers.cookie || '').split(';').map(item => item.trim()); const prefix = `${name}=`; return cookies.find(item => item.startsWith(prefix))?.slice(prefix.length) || ''; }
-function authPasswordConfigured() { return Boolean(process.env.AUTH_USERNAME && process.env.AUTH_PASSWORD_HASH); }
+const rolePermissions = Object.freeze({
+  manager: Object.freeze({views: ['dashboard', 'rotas', 'bases', 'comparativo', 'regras', 'importar', 'notas'], canUploadInvoice: true, canManageTeams: true, canManageImports: true, canViewInvoices: true}),
+  coordinator: Object.freeze({views: ['dashboard', 'rotas', 'bases', 'comparativo'], canUploadInvoice: true, canManageTeams: false, canManageImports: false, canViewInvoices: false}),
+  dispatcher: Object.freeze({views: ['dashboard', 'rotas', 'bases', 'comparativo'], canUploadInvoice: false, canManageTeams: false, canManageImports: false, canViewInvoices: false})
+});
+function configuredUsers() {
+  return [
+    {username: process.env.AUTH_USERNAME, passwordHash: process.env.AUTH_PASSWORD_HASH, role: 'manager'},
+    {username: process.env.AUTH_COORDINATION_USERNAME, passwordHash: process.env.AUTH_COORDINATION_PASSWORD_HASH, role: 'coordinator'},
+    {username: process.env.AUTH_DISPATCHER_USERNAME, passwordHash: process.env.AUTH_DISPATCHER_PASSWORD_HASH, role: 'dispatcher'}
+  ].filter(user => user.username && user.passwordHash);
+}
+function authPasswordConfigured() { return configuredUsers().length > 0; }
 function safeUsername(value) { return safeText(value, 'username', 120, true); }
 function passwordDigest(password, salt, parameters = {}) { const N = Number(parameters.N || 16384), r = Number(parameters.r || 8), p = Number(parameters.p || 1); return scryptSync(String(password), Buffer.from(salt, 'hex'), 64, {N, r, p, maxmem: 32 * 1024 * 1024}); }
-function verifyPassword(password) {
-  const parts = String(process.env.AUTH_PASSWORD_HASH || '').split('$');
+function verifyPassword(password, passwordHash) {
+  const parts = String(passwordHash || '').split('$');
   if (parts.length !== 6 || parts[0] !== 'scrypt') return false;
   const [, n, r, p, salt, encoded] = parts, expected = Buffer.from(encoded, 'hex');
   if (!/^\d+$/.test(n) || !/^\d+$/.test(r) || !/^\d+$/.test(p) || !/^[a-f0-9]{32,128}$/i.test(salt) || expected.length !== 64) return false;
   try { const actual = passwordDigest(password, salt, {N: Number(n), r: Number(r), p: Number(p)}); return timingSafeEqual(actual, expected); } catch { return false; }
 }
+function constantTimeTextEqual(actual, expected) {
+  const actualBuffer = Buffer.from(String(actual));
+  const expectedBuffer = Buffer.from(String(expected));
+  return actualBuffer.length === expectedBuffer.length && timingSafeEqual(actualBuffer, expectedBuffer);
+}
+function configuredUser(username) { return configuredUsers().find(user => constantTimeTextEqual(username, user.username)) || null; }
+function publicSession(session) {
+  const permissions = rolePermissions[session.role] || rolePermissions.dispatcher;
+  return {authenticated: true, username: session.username, role: session.role, permissions};
+}
 function sessionHash(token) { return createHash('sha256').update(token).digest('hex'); }
+async function cleanupExpiredSessions() { const now = Date.now(); if (!pool || now - lastSessionCleanupAt < 300000) return; lastSessionCleanupAt = now; await pool.query('DELETE FROM auth_sessions WHERE expires_at <= NOW()'); }
 async function createSession(req, username) {
   const token = randomBytes(32).toString('base64url'), hash = sessionHash(token), expiresAt = new Date(Date.now() + authSessionTtlSeconds * 1000);
   if (pool) await pool.query('INSERT INTO auth_sessions (token_hash, username, expires_at, ip, user_agent) VALUES ($1,$2,$3,$4,$5)', [hash, username, expiresAt, clientIp(req), safeText(String(req.headers['user-agent'] || ''), 'user-agent', 512, false)]);
@@ -88,14 +115,15 @@ async function createSession(req, username) {
 async function currentSession(req) {
   const token = cookieValue(req, authCookieName); if (!/^[A-Za-z0-9_-]{40,}$/.test(token)) return null;
   const hash = sessionHash(token);
-  if (pool) { const result = await pool.query('DELETE FROM auth_sessions WHERE expires_at <= NOW()'); const session = await pool.query('SELECT username, expires_at FROM auth_sessions WHERE token_hash=$1 AND expires_at > NOW()', [hash]); if (!session.rowCount) return null; return {username: session.rows[0].username, tokenHash: hash, expiresAt: session.rows[0].expires_at}; }
-  const session = memorySessions.get(hash); if (!session || session.expiresAt <= Date.now()) { memorySessions.delete(hash); return null; } return {username: session.username, tokenHash: hash, expiresAt: new Date(session.expiresAt)};
+  if (pool) { await cleanupExpiredSessions(); const session = await pool.query('SELECT username, expires_at FROM auth_sessions WHERE token_hash=$1 AND expires_at > NOW()', [hash]); if (!session.rowCount) return null; const user = configuredUser(session.rows[0].username); if (!user) return null; return {username: user.username, role: user.role, tokenHash: hash, expiresAt: session.rows[0].expires_at}; }
+  const session = memorySessions.get(hash); if (!session || session.expiresAt <= Date.now()) { memorySessions.delete(hash); return null; } const user = configuredUser(session.username); if (!user) return null; return {username: user.username, role: user.role, tokenHash: hash, expiresAt: new Date(session.expiresAt)};
 }
 async function requireAuth(req) { const session = await currentSession(req); if (!session) throw new HttpError(401, 'authentication-required'); req.auth = session; return session; }
+async function requireRole(req, allowedRoles) { const session = req.auth || await requireAuth(req); if (!allowedRoles.includes(session.role)) throw new HttpError(403, 'access-denied'); return session; }
 function sameOriginAllowed(req) { const origin = String(req.headers.origin || ''), appOrigin = String(process.env.APP_ORIGIN || '').replace(/\/$/, ''); if (isProduction && !appOrigin) throw new HttpError(503, 'origin-not-configured'); if (origin && appOrigin && origin !== appOrigin) throw new HttpError(403, 'origin-not-allowed'); }
-function checkPrivateAdminRead(req) { if (!privateAdminReadAllowed(req)) throw new HttpError(403, 'administrative-read-restricted'); if (!consumeRateLimit(req, 'read')) throw new HttpError(429, 'rate-limit-exceeded'); }
-async function checkMutation(req, res) { await requireAuth(req); sameOriginAllowed(req); if (!mutationAllowed(req)) { res.setHeader('Retry-After', '3600'); throw new HttpError(403, 'administrative-operation-restricted'); } if (!consumeRateLimit(req, 'mutation')) throw new HttpError(429, 'rate-limit-exceeded'); }
-async function audit(client, action, resourceType, resourceKey, req, details = {}) { await client.query('INSERT INTO audit_events (id,action,resource_type,resource_key,request_id,ip,details) VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb)', [randomUUID(), action, resourceType, String(resourceKey || ''), req.requestId, clientIp(req), JSON.stringify({...details, username: req.auth?.username || null})]); }
+async function checkPrivateRead(req, allowedRoles) { await requireRole(req, allowedRoles); if (!privateAdminReadAllowed(req)) throw new HttpError(403, 'administrative-read-restricted'); if (!consumeRateLimit(req, 'read')) throw new HttpError(429, 'rate-limit-exceeded'); }
+async function checkMutation(req, res, allowedRoles = ['manager']) { await requireRole(req, allowedRoles); sameOriginAllowed(req); if (!mutationAllowed(req)) { res.setHeader('Retry-After', '3600'); throw new HttpError(403, 'administrative-operation-restricted'); } if (!consumeRateLimit(req, 'mutation')) throw new HttpError(429, 'rate-limit-exceeded'); }
+async function audit(client, action, resourceType, resourceKey, req, details = {}) { await client.query('INSERT INTO audit_events (id,action,resource_type,resource_key,request_id,ip,details) VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb)', [randomUUID(), action, resourceType, String(resourceKey || ''), req.requestId, clientIp(req), JSON.stringify({...details, username: req.auth?.username || null, role: req.auth?.role || null})]); }
 
 async function initDatabase() {
   if (!pool) return;
@@ -130,13 +158,13 @@ async function login(payload, req, res) {
   if (!consumeRateLimit(req, 'auth')) throw new HttpError(429, 'rate-limit-exceeded');
   sameOriginAllowed(req);
   const username = safeUsername(payload.username), password = typeof payload.password === 'string' ? payload.password : '';
-  const expected = String(process.env.AUTH_USERNAME);
-  const usernameMatches = username.length === expected.length && timingSafeEqual(Buffer.from(username), Buffer.from(expected));
-  if (!password || !usernameMatches || !verifyPassword(password)) throw new HttpError(401, 'invalid-credentials');
-  const session = await createSession(req, expected);
+  const user = configuredUser(username);
+  const fallbackHash = configuredUsers()[0]?.passwordHash || '';
+  if (!password || !verifyPassword(password, user?.passwordHash || fallbackHash) || !user) throw new HttpError(401, 'invalid-credentials');
+  const session = await createSession(req, user.username);
   const secure = isProduction ? '; Secure' : '';
   res.setHeader('Set-Cookie', `${authCookieName}=${session.token}; Path=/; Max-Age=${authSessionTtlSeconds}; HttpOnly; SameSite=Strict${secure}`);
-  return {authenticated: true, username: expected, expiresAt: session.expiresAt.toISOString()};
+  return {...publicSession(user), expiresAt: session.expiresAt.toISOString()};
 }
 async function logout(req, res) {
   const session = await currentSession(req);
@@ -184,12 +212,13 @@ function routeIdentity(row) { const r = recordNormalized(row); return {base: can
 function mercadoIdentity(row) { const r = recordNormalized(row); return {date: routeDate(r), driver: normalizedPerson(r.motorista || r.nomemotorista || r.nomedomotorista || r.nomedotransportador || r.nometransportador || r.nomecondutor || r.driver || r.drivername || r.condutor || r.nome || r.transportador), route: normalizedPerson(r.rotalogistics || r.iddarota || r.idrota || r.routeid || r.rota), plate: normalizedPlate(r.placa || r.plate), ds: parsePercentValue(r.ds || r.dsrota || r.percentualds || r.deliverysuccessrate || r.performance || r.performanceds || r.entregacomsucesso || r.entregascomsucesso || r.entregassucesso || r.sucessos || r.successfuldeliveries)}; }
 async function authoritativeBonusCents(period, mode, base, dispatcher) {
   if (!pool) return null;
+  const selectedPeriod = operationPeriod(period); if (!selectedPeriod) throw new HttpError(400, 'period-invalid');
   const result = await pool.query("SELECT source_type, data FROM import_records WHERE deleted_at IS NULL AND source_type = ANY($1::text[])", [['DDS', 'MERCADO_LIVRE', 'LOGICA_FF', 'FF_LOCADORA']]);
   const rows = {DDS: [], MERCADO_LIVRE: [], LOGICA_FF: [], FF_LOCADORA: []}; result.rows.forEach(row => rows[row.source_type]?.push(row.data));
   const canonicalBase = canonicalServerBase(base);
-  const dds = rows.DDS.map(routeIdentity).filter(row => routePeriod(row.date) === period && row.base === canonicalBase && !isXptServerBase(row.base) && row.plate && row.date && row.cluster.toUpperCase() !== 'ROTA');
-  const mercado = new Map(); rows.MERCADO_LIVRE.map(mercadoIdentity).filter(row => routePeriod(row.date) === period && row.date).forEach(row => { const keys = [`driver|${row.date}|${row.driver}`, `route|${row.date}|${row.route}`, `plate|${row.date}|${row.plate}`].filter(key => !key.endsWith('|')); if (row.ds === null) return; keys.forEach(key => mercado.set(key, row.ds)); });
-  const logic = rows.LOGICA_FF.map(routeIdentity).map((row, index) => { const raw = recordNormalized(rows.LOGICA_FF[index]); return {...row, status: String(raw.rotas || raw.status || '').trim().toUpperCase(), reserve: String(raw.reservas || raw.reserva || '').trim()}; }).filter(row => routePeriod(row.date) === period && row.base && row.plate);
+  const dds = rows.DDS.map(routeIdentity).filter(row => operationPeriodContains(row.date, selectedPeriod) && row.base === canonicalBase && !isXptServerBase(row.base) && row.plate && row.date && row.cluster.toUpperCase() !== 'ROTA');
+  const mercado = new Map(); rows.MERCADO_LIVRE.map(mercadoIdentity).filter(row => operationPeriodContains(row.date, selectedPeriod) && row.date).forEach(row => { const keys = [`driver|${row.date}|${row.driver}`, `route|${row.date}|${row.route}`, `plate|${row.date}|${row.plate}`].filter(key => !key.endsWith('|')); if (row.ds === null) return; keys.forEach(key => mercado.set(key, row.ds)); });
+  const logic = rows.LOGICA_FF.map(routeIdentity).map((row, index) => { const raw = recordNormalized(rows.LOGICA_FF[index]); return {...row, status: String(raw.rotas || raw.status || '').trim().toUpperCase(), reserve: String(raw.reservas || raw.reserva || '').trim()}; }).filter(row => operationPeriodContains(row.date, selectedPeriod) && row.base && row.plate);
   const counted = new Set(['PLACA BIPADA', 'RESERVA BIPADA']);
   const ffKeys = new Set(); const logicByBase = new Map();
   logic.forEach(row => { row.base = canonicalServerBase(row.base); const group = logicByBase.get(row.base) || {plates: new Set(), bipped: 0}; group.plates.add(normalizedPlate(row.plate)); if (counted.has(row.status)) { group.bipped += 1; ffKeys.add(`${row.date}|${normalizedPlate(row.plate)}`); if (row.reserve) ffKeys.add(`${row.date}|${normalizedPlate(row.reserve)}`); } logicByBase.set(row.base, group); });
@@ -198,14 +227,14 @@ async function authoritativeBonusCents(period, mode, base, dispatcher) {
   if (mode === 'ff') {
     const ffRoutes = withDs.filter(row => ffKeys.has(`${row.date}|${normalizedPlate(row.plate)}`));
     const average = ffRoutes.filter(row => Number.isFinite(row.ds)).reduce((sum, row) => sum + row.ds, 0) / (ffRoutes.filter(row => Number.isFinite(row.ds)).length || 1);
-    const group = logicByBase.get(base); const share = group?.plates.size ? group.bipped / (group.plates.size * 26) : null; const payout = average >= .92 && Number.isFinite(share) ? (share >= 1 ? 100000 : share >= .95 ? 70000 : share >= .9 ? 35000 : 0) : 0;
+    const plannedDays = selectedPeriod.part === 'monthly' ? 26 : 13; const group = logicByBase.get(canonicalBase); const share = group?.plates.size ? group.bipped / (group.plates.size * plannedDays) : null; const payout = average >= .92 && Number.isFinite(share) ? (share >= 1 ? 100000 : share >= .95 ? 70000 : share >= .9 ? 35000 : 0) : 0;
     const team = await pool.query('SELECT ff_recipient FROM base_team_configs WHERE base=$1', [canonicalBase]); return team.rows[0]?.ff_recipient && team.rows[0].ff_recipient === dispatcher ? payout : 0;
   }
   const spotRoutes = withDs.filter(row => !ffKeys.has(`${row.date}|${normalizedPlate(row.plate)}`) && !fleetPlates.has(normalizedPlate(row.plate)) && Number.isFinite(row.ds) && row.ds >= .92);
-  const days = new Date(Date.UTC(Number(period.slice(0, 4)), Number(period.slice(5, 7)), 0)).getUTCDate(); const cars = days ? spotRoutes.length / days : 0; const bands = [[105, 1000000], [95, 900000], [85, 800000], [75, 700000], [65, 600000], [55, 500000], [45, 400000], [35, 300000], [25, 200000], [15, 150000], [10, 100000]]; const band = bands.find(([minimum]) => cars >= minimum); if (!band) return 0; const team = await pool.query('SELECT dispatchers FROM base_team_configs WHERE base=$1', [canonicalBase]); const count = Math.min(4, Math.max(1, Array.isArray(team.rows[0]?.dispatchers) ? team.rows[0].dispatchers.length : 1)); const columns = {1: band[1], 2: Math.round(band[1] / 2), 3: Math.round(band[1] / 3), 4: Math.round(band[1] / 4)}; return team.rows[0]?.dispatchers?.includes(dispatcher) ? columns[count] : 0;
+  const days = operationPeriodDays(selectedPeriod); const cars = days ? spotRoutes.length / days : 0; const bands = [[105, 1000000], [95, 900000], [85, 800000], [75, 700000], [65, 600000], [55, 500000], [45, 400000], [35, 300000], [25, 200000], [15, 150000], [10, 100000]]; const band = bands.find(([minimum]) => cars >= minimum); if (!band) return 0; const team = await pool.query('SELECT dispatchers FROM base_team_configs WHERE base=$1', [canonicalBase]); const count = Math.min(4, Math.max(1, Array.isArray(team.rows[0]?.dispatchers) ? team.rows[0].dispatchers.length : 1)); const columns = {1: band[1], 2: Math.round(band[1] / 2), 3: Math.round(band[1] / 3), 4: Math.round(band[1] / 4)}; return team.rows[0]?.dispatchers?.includes(dispatcher) ? columns[count] : 0;
 }
 async function listInvoices() { if (!pool) return {invoices: []}; const result = await pool.query('SELECT public_token AS file_token, period, mode, base, dispatcher, file_name, mime_type, file_size, amount, created_at FROM invoices WHERE deleted_at IS NULL ORDER BY created_at DESC, id DESC'); return {invoices: result.rows}; }
-async function saveInvoice(payload, req) { if (!pool) throw new HttpError(503, 'database-not-configured'); const period = safeText(payload.period, 'period', 7, true), mode = String(payload.mode || '').toLowerCase(), base = safeText(payload.base, 'base', 160, true), dispatcher = safeText(payload.dispatcher, 'dispatcher', 160, true); if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(period) || !['ff', 'spot'].includes(mode)) throw new HttpError(400, 'invoice-fields-invalid'); const fileName = safeFileName(payload.fileName, 'nota-fiscal.pdf'), extension = fileExtension(fileName), mimeType = new Map([['.pdf', 'application/pdf'], ['.png', 'image/png'], ['.jpg', 'image/jpeg'], ['.jpeg', 'image/jpeg']]).get(extension); if (!mimeType) throw new HttpError(400, 'invoice-extension-invalid'); if (payload.mimeType && !['application/octet-stream', mimeType].includes(String(payload.mimeType).toLowerCase())) throw new HttpError(400, 'invoice-mime-invalid'); const fileData = decodeBase64(payload.fileBase64, maxInvoiceFile), claimedCents = bonusCents(payload.amount, mode), calculatedCents = await authoritativeBonusCents(period, mode, base, dispatcher), amountCents = calculatedCents === null ? claimedCents : calculatedCents; if ((isProduction || process.env.STRICT_SERVER_BONUS === 'true') && calculatedCents !== null && claimedCents !== calculatedCents) throw new HttpError(409, 'bonus-amount-mismatch'); const client = await pool.connect(); try { await client.query('BEGIN'); const result = await client.query(`INSERT INTO invoices (period,mode,base,dispatcher,file_name,mime_type,file_size,amount,file_data,public_token,deleted_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NULL) ON CONFLICT (period,mode,base,dispatcher) DO UPDATE SET file_name=EXCLUDED.file_name,mime_type=EXCLUDED.mime_type,file_size=EXCLUDED.file_size,amount=EXCLUDED.amount,file_data=EXCLUDED.file_data,deleted_at=NULL,created_at=NOW() RETURNING public_token AS file_token,period,mode,base,dispatcher,file_name,mime_type,file_size,amount,created_at`, [period, mode, base, dispatcher, fileName, mimeType, fileData.length, amountCents / 100, fileData, randomUUID()]); await audit(client, 'invoice-upsert', 'invoice', `${period}:${mode}:${base}:${dispatcher}`, req, {amountCents, fileSize: fileData.length, serverCalculated: calculatedCents !== null}); await client.query('COMMIT'); return result.rows[0]; } catch (error) { await client.query('ROLLBACK'); throw error; } finally { client.release(); } }
+async function saveInvoice(payload, req) { if (!pool) throw new HttpError(503, 'database-not-configured'); const period = safeText(payload.period, 'period', 9, true), mode = String(payload.mode || '').toLowerCase(), base = safeText(payload.base, 'base', 160, true), dispatcher = safeText(payload.dispatcher, 'dispatcher', 160, true); if (!operationPeriod(period) || !['ff', 'spot'].includes(mode)) throw new HttpError(400, 'invoice-fields-invalid'); const fileName = safeFileName(payload.fileName, 'nota-fiscal.pdf'), extension = fileExtension(fileName), mimeType = new Map([['.pdf', 'application/pdf'], ['.png', 'image/png'], ['.jpg', 'image/jpeg'], ['.jpeg', 'image/jpeg']]).get(extension); if (!mimeType) throw new HttpError(400, 'invoice-extension-invalid'); if (payload.mimeType && !['application/octet-stream', mimeType].includes(String(payload.mimeType).toLowerCase())) throw new HttpError(400, 'invoice-mime-invalid'); const fileData = decodeBase64(payload.fileBase64, maxInvoiceFile), claimedCents = bonusCents(payload.amount, mode), calculatedCents = await authoritativeBonusCents(period, mode, base, dispatcher), amountCents = calculatedCents === null ? claimedCents : calculatedCents; if ((isProduction || process.env.STRICT_SERVER_BONUS === 'true') && calculatedCents !== null && claimedCents !== calculatedCents) throw new HttpError(409, 'bonus-amount-mismatch'); const client = await pool.connect(); try { await client.query('BEGIN'); const result = await client.query(`INSERT INTO invoices (period,mode,base,dispatcher,file_name,mime_type,file_size,amount,file_data,public_token,deleted_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NULL) ON CONFLICT (period,mode,base,dispatcher) DO UPDATE SET file_name=EXCLUDED.file_name,mime_type=EXCLUDED.mime_type,file_size=EXCLUDED.file_size,amount=EXCLUDED.amount,file_data=EXCLUDED.file_data,deleted_at=NULL,created_at=NOW() RETURNING public_token AS file_token,period,mode,base,dispatcher,file_name,mime_type,file_size,amount,created_at`, [period, mode, base, dispatcher, fileName, mimeType, fileData.length, amountCents / 100, fileData, randomUUID()]); await audit(client, 'invoice-upsert', 'invoice', `${period}:${mode}:${base}:${dispatcher}`, req, {amountCents, fileSize: fileData.length, serverCalculated: calculatedCents !== null}); await client.query('COMMIT'); return result.rows[0]; } catch (error) { await client.query('ROLLBACK'); throw error; } finally { client.release(); } }
 async function downloadInvoice(token, res) { if (!pool) throw new HttpError(503, 'database-not-configured'); if (!/^[a-f0-9-]{36}$/i.test(token)) throw new HttpError(400, 'file-token-invalid'); const result = await pool.query('SELECT mime_type, file_data FROM invoices WHERE public_token=$1 AND deleted_at IS NULL', [token]); if (!result.rowCount) throw new HttpError(404, 'not-found'); const row = result.rows[0]; res.setHeader('content-type', row.mime_type || 'application/octet-stream'); res.setHeader('content-disposition', 'attachment; filename="nota-fiscal"'); res.setHeader('cache-control', 'private, no-store'); res.end(row.file_data); }
 async function archiveInvoice(token, req) { if (!pool) throw new HttpError(503, 'database-not-configured'); if (!/^[a-f0-9-]{36}$/i.test(token)) throw new HttpError(400, 'file-token-invalid'); const client = await pool.connect(); try { await client.query('BEGIN'); const result = await client.query('UPDATE invoices SET deleted_at=NOW() WHERE public_token=$1 AND deleted_at IS NULL RETURNING public_token', [token]); if (!result.rowCount) throw new HttpError(404, 'not-found'); await audit(client, 'invoice-archive', 'invoice', token, req); await client.query('COMMIT'); return {archived: true}; } catch (error) { await client.query('ROLLBACK'); throw error; } finally { client.release(); } }
 
@@ -215,18 +244,18 @@ async function routeRequest(req, res) {
   if (pathname === '/api/db-health') throw new HttpError(404, 'not-found');
   if (pathname === '/api/auth/login' && req.method === 'POST') return sendJson(res, 200, await login(await readJson(req, 16 * 1024), req, res), requestId);
   if (pathname === '/api/auth/logout' && req.method === 'POST') { sameOriginAllowed(req); return sendJson(res, 200, await logout(req, res), requestId); }
-  if (pathname === '/api/auth/session' && req.method === 'GET') return sendJson(res, 200, {authenticated: true, username: (await requireAuth(req)).username}, requestId);
+  if (pathname === '/api/auth/session' && req.method === 'GET') return sendJson(res, 200, publicSession(await requireAuth(req)), requestId);
   if (pathname.startsWith('/api/')) await requireAuth(req);
   if (pathname === '/api/imports' && req.method === 'POST') { await checkMutation(req, res); return sendJson(res, 201, await persistImport(await readJson(req, maxImportPayload), req), requestId); }
   if (pathname === '/api/imports/status' && req.method === 'GET') return sendJson(res, 200, await latestImportStatus(), requestId);
   if (pathname === '/api/imports/latest' && req.method === 'GET') return sendJson(res, 200, await latestImports(), requestId);
   if (pathname === '/api/imports/period-summary' && req.method === 'GET') return sendJson(res, 200, await importPeriodSummary(url.searchParams.get('period') || ''), requestId);
   if (pathname === '/api/imports/remove-period' && req.method === 'POST') { await checkMutation(req, res); const body = await readJson(req, 1024); return sendJson(res, 200, await removeImportPeriod(safeText(body.period, 'period', 7, true), req), requestId); }
-  if (pathname === '/api/teams' && req.method === 'GET') { checkPrivateAdminRead(req); return sendJson(res, 200, await listTeamConfigs(), requestId); }
+  if (pathname === '/api/teams' && req.method === 'GET') { await requireRole(req, ['manager', 'coordinator', 'dispatcher']); return sendJson(res, 200, await listTeamConfigs(), requestId); }
   if (pathname === '/api/teams' && req.method === 'POST') { await checkMutation(req, res); return sendJson(res, 201, await saveTeamConfig(await readJson(req, 2 * 1024 * 1024), req), requestId); }
-  if (pathname === '/api/invoices' && req.method === 'GET') { checkPrivateAdminRead(req); return sendJson(res, 200, await listInvoices(), requestId); }
-  if (pathname === '/api/invoices' && req.method === 'POST') { await checkMutation(req, res); return sendJson(res, 201, await saveInvoice(await readJson(req, 15 * 1024 * 1024), req), requestId); }
-  const invoiceMatch = pathname.match(/^\/api\/invoices\/([a-f0-9-]{36})\/file$/i); if (invoiceMatch && req.method === 'GET') { checkPrivateAdminRead(req); return downloadInvoice(invoiceMatch[1], res); }
+  if (pathname === '/api/invoices' && req.method === 'GET') { await checkPrivateRead(req, ['manager', 'coordinator']); return sendJson(res, 200, await listInvoices(), requestId); }
+  if (pathname === '/api/invoices' && req.method === 'POST') { await checkMutation(req, res, ['manager', 'coordinator']); return sendJson(res, 201, await saveInvoice(await readJson(req, 15 * 1024 * 1024), req), requestId); }
+  const invoiceMatch = pathname.match(/^\/api\/invoices\/([a-f0-9-]{36})\/file$/i); if (invoiceMatch && req.method === 'GET') { await checkPrivateRead(req, ['manager', 'coordinator']); return downloadInvoice(invoiceMatch[1], res); }
   const invoiceArchiveMatch = pathname.match(/^\/api\/invoices\/([a-f0-9-]{36})$/i); if (invoiceArchiveMatch && req.method === 'DELETE') { await checkMutation(req, res); return sendJson(res, 200, await archiveInvoice(invoiceArchiveMatch[1], req), requestId); }
   const file = publicPath(pathname); if (!file) throw new HttpError(404, 'not-found');
   if ((pathname === '/' || pathname === '/index.html') && !(await currentSession(req))) { res.statusCode = 302; res.setHeader('Location', '/login.html'); return res.end(); }

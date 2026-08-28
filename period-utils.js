@@ -2,9 +2,9 @@
   function bounds(month, part) {
     const [year, monthNumber] = String(month || '').split('-').map(Number);
     const daysInMonth = year && monthNumber ? new Date(Date.UTC(year, monthNumber, 0)).getUTCDate() : 0;
-    const selectedPart = part === '2' ? '2' : '1';
+    const selectedPart = part === 'monthly' ? 'monthly' : part === '2' ? '2' : '1';
     const start = selectedPart === '2' ? 16 : 1;
-    const end = selectedPart === '2' ? daysInMonth : Math.min(15, daysInMonth);
+    const end = selectedPart === 'monthly' || selectedPart === '2' ? daysInMonth : Math.min(15, daysInMonth);
     return { month, part: selectedPart, start, end, days: Math.max(0, end - start + 1) };
   }
 
@@ -25,6 +25,7 @@
   function fixedFleetPlannedDays(monthlyDays, part) {
     const total = Number(monthlyDays);
     if (!Number.isFinite(total) || total < 2) return null;
+    if (part === 'monthly') return total;
     const firstPart = Math.floor(total / 2);
     return part === '2' ? total - firstPart : firstPart;
   }

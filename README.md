@@ -1,6 +1,14 @@
 # Bonus Control — Frota Fixa
 
-Painel inicial para o fechamento mensal da bonificação de dispatchers.
+Painel operacional para acompanhamento mensal e quinzenal da bonificação de dispatchers.
+
+## Períodos
+
+- `1ª Quinzena`: dias 1 a 15; a Frota Fixa usa 13 dias planejados.
+- `2ª Quinzena`: dias 16 ao último dia do mês; a Frota Fixa usa 13 dias planejados.
+- `Mensal`: mês completo; a Frota Fixa preserva a regra original de 26 dias planejados.
+
+O Spot usa a quantidade real de dias do período selecionado para calcular a média diária.
 
 ## Regra implementada
 
@@ -35,12 +43,23 @@ Abra `index.html` no navegador. Não há dependências de build nesta primeira v
 
 ## Segurança e produção
 
-O painel agora exige autenticação de gerência antes de servir o dashboard e os dados
-operacionais. O usuário único desta primeira fase é configurado no Railway por
-`AUTH_USERNAME` e `AUTH_PASSWORD_HASH`; a senha nunca fica no frontend. As sessões usam
+O painel exige autenticação antes de servir o dashboard e os dados operacionais. Há três
+papéis configurados exclusivamente por variáveis protegidas do Railway:
+
+- Gerência (`AUTH_USERNAME`): acesso completo.
+- Coordenação (`AUTH_COORDINATION_USERNAME`): Dashboard, Rotas, Bases e Comparativo; pode anexar NF.
+- Dispatcher (`AUTH_DISPATCHER_USERNAME`): as mesmas quatro telas, somente para leitura.
+
+Cada usuário usa seu próprio `*_PASSWORD_HASH`; a senha nunca fica no frontend. As sessões usam
 cookie `HttpOnly`, `Secure` em produção, `SameSite=Strict`, expiração e invalidação no
-logout. As APIs também validam a sessão no backend, portanto esconder botões não é a
-proteção.
+logout. Várias sessões do mesmo usuário compartilhado podem coexistir. As APIs validam o
+papel no backend, portanto esconder botões não é a proteção.
+
+Gere cada hash sem gravar a senha no repositório:
+
+```bash
+npm run auth:hash -- "senha-temporaria-com-12-ou-mais-caracteres"
+```
 
 Em produção, mantenha `ADMIN_MUTATIONS_ENABLED=true` e `ADMIN_READ_ENABLED=true` somente
 com o login configurado. `ADMIN_IP_ALLOWLIST` é opcional: vazio ou `*` permite gerentes
