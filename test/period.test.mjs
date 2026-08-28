@@ -31,3 +31,21 @@ test('utilização FF usa os dias da quinzena selecionada', () => {
   assert.equal(period.utilization(101, 7, 26), 101 / 182);
   assert.equal(period.utilization(0, 0, 15), null);
 });
+
+test('detalhes financeiros aparecem somente no período mensal', () => {
+  assert.equal(period.showsFinancialDetails('monthly'), true);
+  assert.equal(period.showsFinancialDetails('1'), false);
+  assert.equal(period.showsFinancialDetails('2'), false);
+  assert.equal(period.showsFinancialDetails(undefined), false);
+});
+
+test('camada quinzenal reconhece todas as colunas e status financeiros', () => {
+  assert.equal(period.isFinancialColumnLabel('FAIXA'), true);
+  assert.equal(period.isFinancialColumnLabel('BÔNUS*'), true);
+  assert.equal(period.isFinancialColumnLabel('Bônus anterior → atual'), true);
+  assert.equal(period.isFinancialColumnLabel('VALOR'), true);
+  assert.equal(period.isFinancialColumnLabel('DS MÉDIO'), false);
+  assert.equal(period.isFinancialStatusLabel('Faixa atingida'), true);
+  assert.equal(period.isFinancialStatusLabel('Faixa não atingida'), true);
+  assert.equal(period.isFinancialStatusLabel('DS elegível'), false);
+});

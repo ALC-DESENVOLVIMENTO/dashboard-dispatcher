@@ -36,7 +36,7 @@
     },
     "BARRETOS SSP31": {
       "base": "BARRETOS - SSP31",
-      "coordinator": "VIVIANE PANSANI",
+      "coordinator": "",
       "dispatchers": [
         "EDUARDA GREGORIO MARCHI",
         "JESSICA SCALLER DOS SANTOS CARDOSO"
@@ -54,7 +54,7 @@
     },
     "BAURU SSP14": {
       "base": "BAURU - SSP14",
-      "coordinator": "VIVIANE PANSANI",
+      "coordinator": "",
       "dispatchers": [
         "GABRIELY DE OLIVERIA PEREIRA MENDONÇA",
         "TATIANA SAGGIORO DA SILVA"
@@ -137,7 +137,7 @@
     },
     "GOIANIA SGO1": {
       "base": "GOIANIA - SGO1",
-      "coordinator": "VIVIANE PANSANI",
+      "coordinator": "",
       "dispatchers": [
         "GUSTAVO BARBOSA ALMEIDA",
         "JOSARELA GALVÃO DE ALMEIDA",
@@ -166,7 +166,7 @@
     },
     "HIDROLANDIA SGO3": {
       "base": "HIDROLANDIA - SGO3",
-      "coordinator": "VIVIANE PANSANI",
+      "coordinator": "",
       "dispatchers": [
         "Roberto Paulo De Souza Cunha",
         "WHANNY NASCIMENTO DOS SANTOS"
@@ -192,7 +192,7 @@
     },
     "JALES SSP28": {
       "base": "JALES - SSP28",
-      "coordinator": "VIVIANE PANSANI",
+      "coordinator": "",
       "dispatchers": [
         "BRUNA PASSARELLO VENTURA",
         "JESSYCA EDUARDA DE OLIVEIRA PRIMO"
@@ -200,7 +200,7 @@
     },
     "MARILIA SSP13": {
       "base": "MARILIA - SSP13",
-      "coordinator": "VIVIANE PANSANI",
+      "coordinator": "",
       "dispatchers": [
         "ANA CAROLINA PEREIRA DE OLIVEIRA",
         "DALILEA SILVESTRE FERNANDES",
@@ -286,7 +286,7 @@
     },
     "RIBEIRAO PRETO SSP57": {
       "base": "RIBEIRAO PRETO - SSP57",
-      "coordinator": "VIVIANE PANSANI",
+      "coordinator": "",
       "dispatchers": [
         "BRUNA DE OLIVEIRA CAMPOS",
         "NAYANNE MAYUME DO CARMO"
@@ -311,7 +311,7 @@
     },
     "SAO CARLOS SSP22": {
       "base": "SAO CARLOS - SSP22",
-      "coordinator": "VIVIANE PANSANI",
+      "coordinator": "",
       "dispatchers": [
         "AMANDA CELITA CARNEIRO",
         "THAIS MOURA"
@@ -329,7 +329,7 @@
     },
     "SAO JOSE DO RIO PRETO SSP12": {
       "base": "SAO JOSE DO RIO PRETO - SSP12",
-      "coordinator": "VIVIANE PANSANI",
+      "coordinator": "",
       "dispatchers": [
         "DANIELA MARIA BALDAN DE MELO",
         "LEONARDO DOMINGUES LIRA",

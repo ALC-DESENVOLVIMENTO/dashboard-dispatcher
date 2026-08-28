@@ -30,6 +30,22 @@
     return part === '2' ? total - firstPart : firstPart;
   }
 
-  global.BonusPeriod = Object.freeze({ bounds, contains, utilization, fixedFleetPlannedDays });
+  function showsFinancialDetails(part) {
+    return part === 'monthly';
+  }
+
+  function normalizedLabel(value) {
+    return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
+  }
+
+  function isFinancialColumnLabel(value) {
+    return /^(faixa|bonus|valor)\b/.test(normalizedLabel(value));
+  }
+
+  function isFinancialStatusLabel(value) {
+    return /^faixa (atingida|nao atingida)$/.test(normalizedLabel(value));
+  }
+
+  global.BonusPeriod = Object.freeze({ bounds, contains, utilization, fixedFleetPlannedDays, showsFinancialDetails, isFinancialColumnLabel, isFinancialStatusLabel });
   if (typeof module !== 'undefined' && module.exports) module.exports = global.BonusPeriod;
 })(globalThis);
