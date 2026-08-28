@@ -65,6 +65,24 @@
     return grouped;
   }
 
-  global.BonusPeriod = Object.freeze({ bounds, contains, utilization, fixedFleetPlannedDays, showsFinancialDetails, isFinancialColumnLabel, isFinancialStatusLabel, baseRouteCounts });
+  function routeIdentifier(value) {
+    const text = String(value ?? '').trim();
+    if (!text) return '';
+    return /^\d+\.0+$/.test(text) ? text.slice(0, text.indexOf('.')) : text.toUpperCase();
+  }
+
+  function confirmedAmbulanceRows(ddsRows, confirmedRouteIds) {
+    const confirmed = new Set(Array.from(confirmedRouteIds || [], routeIdentifier).filter(Boolean));
+    const seen = new Set();
+    return (Array.isArray(ddsRows) ? ddsRows : []).filter(row => {
+      const ambulance = row?.isAmb === true || String(row?.cluster || '').trim().toUpperCase() === 'ROTA';
+      const route = routeIdentifier(row?.rota ?? row?.rotalogistics ?? row?.route);
+      if (!ambulance || !route || !confirmed.has(route) || seen.has(route)) return false;
+      seen.add(route);
+      return true;
+    });
+  }
+
+  global.BonusPeriod = Object.freeze({ bounds, contains, utilization, fixedFleetPlannedDays, showsFinancialDetails, isFinancialColumnLabel, isFinancialStatusLabel, baseRouteCounts, routeIdentifier, confirmedAmbulanceRows });
   if (typeof module !== 'undefined' && module.exports) module.exports = global.BonusPeriod;
 })(globalThis);

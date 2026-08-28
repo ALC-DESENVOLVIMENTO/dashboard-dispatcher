@@ -61,3 +61,16 @@ test('rotas normais, não elegíveis e ambulâncias são contabilizadas separada
   assert.deepEqual(counts['BASE A'], {base: 'BASE A', routes: 3, eligible: 1, notEligible: 1, awaiting: 1, ambulances: 1});
   assert.deepEqual(counts['BASE B'], {base: 'BASE B', routes: 0, eligible: 0, notEligible: 0, awaiting: 0, ambulances: 1});
 });
+
+test('ambulâncias só são confirmadas quando Rota Logistics existe no banco', () => {
+  const rows = period.confirmedAmbulanceRows([
+    {base: 'BASE A', cluster: 'ROTA', rota: 401729392},
+    {base: 'BASE A', cluster: 'ROTA', rota: '401602083'},
+    {base: 'BASE A', cluster: 'ROTA', rota: '401602083.0'},
+    {base: 'BASE A', cluster: 'ROTA', rota: '401602097'},
+    {base: 'BASE A', cluster: 'AM1', rota: '401602083'},
+    {base: 'BASE A', cluster: 'ROTA', rota: ''},
+  ], ['401729392.0', 401602083]);
+
+  assert.deepEqual(rows.map(row => String(row.rota)), ['401729392', '401602083']);
+});
