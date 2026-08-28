@@ -49,3 +49,15 @@ test('camada quinzenal reconhece todas as colunas e status financeiros', () => {
   assert.equal(period.isFinancialStatusLabel('Faixa não atingida'), true);
   assert.equal(period.isFinancialStatusLabel('DS elegível'), false);
 });
+
+test('rotas normais, não elegíveis e ambulâncias são contabilizadas separadamente por base', () => {
+  const counts = period.baseRouteCounts([
+    {base: 'BASE A', cluster: 'AM1', ds: 0.98},
+    {base: 'BASE A', cluster: 'PM1', ds: 0.87},
+    {base: 'BASE A', cluster: 'ROTA', ds: 1},
+    {base: 'BASE A', cluster: 'AM1', ds: null},
+    {base: 'BASE B', isAmb: true, ds: 0.4},
+  ]);
+  assert.deepEqual(counts['BASE A'], {base: 'BASE A', routes: 3, eligible: 1, notEligible: 1, awaiting: 1, ambulances: 1});
+  assert.deepEqual(counts['BASE B'], {base: 'BASE B', routes: 0, eligible: 0, notEligible: 0, awaiting: 0, ambulances: 1});
+});

@@ -46,6 +46,25 @@
     return /^faixa (atingida|nao atingida)$/.test(normalizedLabel(value));
   }
 
-  global.BonusPeriod = Object.freeze({ bounds, contains, utilization, fixedFleetPlannedDays, showsFinancialDetails, isFinancialColumnLabel, isFinancialStatusLabel });
+  function baseRouteCounts(rows) {
+    const grouped = {};
+    for (const row of Array.isArray(rows) ? rows : []) {
+      const base = String(row?.base || 'Base sem nome').trim() || 'Base sem nome';
+      const current = grouped[base] ||= { base, routes: 0, eligible: 0, notEligible: 0, awaiting: 0, ambulances: 0 };
+      const ambulance = row?.isAmb === true || String(row?.cluster || '').trim().toUpperCase() === 'ROTA';
+      if (ambulance) {
+        current.ambulances += 1;
+        continue;
+      }
+      current.routes += 1;
+      const ds = row?.ds === null || row?.ds === undefined || row?.ds === '' ? NaN : Number(row.ds);
+      if (!Number.isFinite(ds)) current.awaiting += 1;
+      else if (ds >= 0.92) current.eligible += 1;
+      else current.notEligible += 1;
+    }
+    return grouped;
+  }
+
+  global.BonusPeriod = Object.freeze({ bounds, contains, utilization, fixedFleetPlannedDays, showsFinancialDetails, isFinancialColumnLabel, isFinancialStatusLabel, baseRouteCounts });
   if (typeof module !== 'undefined' && module.exports) module.exports = global.BonusPeriod;
 })(globalThis);
