@@ -1,6 +1,11 @@
 const form = document.querySelector('#loginForm');
 const button = document.querySelector('#loginButton');
 const message = document.querySelector('#loginMessage');
+const allowedReturnHashes = new Set(['#dashboard', '#rotas', '#bases', '#comparativo', '#regras', '#importar', '#notas']);
+
+if (new URLSearchParams(window.location.search).get('expired') === '1') {
+  message.textContent = 'Sua sessão expirou. Entre novamente para recarregar os dados.';
+}
 
 form?.addEventListener('submit', async event => {
   event.preventDefault();
@@ -18,7 +23,13 @@ form?.addEventListener('submit', async event => {
     });
     const body = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(response.status === 429 ? 'Muitas tentativas. Aguarde alguns minutos.' : 'Usuário ou senha inválidos.');
-    window.location.replace('/');
+    let returnHash = '';
+    try {
+      const stored = sessionStorage.getItem('bonusControlReturnHash') || '';
+      if (allowedReturnHashes.has(stored)) returnHash = stored;
+      sessionStorage.removeItem('bonusControlReturnHash');
+    } catch { /* storage can be unavailable */ }
+    window.location.replace(`/${returnHash}`);
   } catch (error) {
     message.textContent = error.message;
     button.disabled = false;

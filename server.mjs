@@ -112,6 +112,17 @@ async function createSession(req, username) {
   else memorySessions.set(hash, {username, expiresAt: expiresAt.getTime()});
   return {token, expiresAt};
 }
+function setSessionCookie(res, token) {
+  const secure = isProduction ? '; Secure' : '';
+  res.setHeader('Set-Cookie', `${authCookieName}=${token}; Path=/; Max-Age=${authSessionTtlSeconds}; HttpOnly; SameSite=Strict${secure}`);
+}
+async function renewSession(req, res, session) {
+  const token = cookieValue(req, authCookieName), expiresAt = new Date(Date.now() + authSessionTtlSeconds * 1000);
+  if (pool) await pool.query('UPDATE auth_sessions SET expires_at=$1 WHERE token_hash=$2', [expiresAt, session.tokenHash]);
+  else memorySessions.set(session.tokenHash, {username: session.username, expiresAt: expiresAt.getTime()});
+  setSessionCookie(res, token);
+  return {...session, expiresAt};
+}
 async function currentSession(req) {
   const token = cookieValue(req, authCookieName); if (!/^[A-Za-z0-9_-]{40,}$/.test(token)) return null;
   const hash = sessionHash(token);
@@ -162,8 +173,7 @@ async function login(payload, req, res) {
   const fallbackHash = configuredUsers()[0]?.passwordHash || '';
   if (!password || !verifyPassword(password, user?.passwordHash || fallbackHash) || !user) throw new HttpError(401, 'invalid-credentials');
   const session = await createSession(req, user.username);
-  const secure = isProduction ? '; Secure' : '';
-  res.setHeader('Set-Cookie', `${authCookieName}=${session.token}; Path=/; Max-Age=${authSessionTtlSeconds}; HttpOnly; SameSite=Strict${secure}`);
+  setSessionCookie(res, session.token);
   return {...publicSession(user), expiresAt: session.expiresAt.toISOString()};
 }
 async function logout(req, res) {
@@ -244,7 +254,10 @@ async function routeRequest(req, res) {
   if (pathname === '/api/db-health') throw new HttpError(404, 'not-found');
   if (pathname === '/api/auth/login' && req.method === 'POST') return sendJson(res, 200, await login(await readJson(req, 16 * 1024), req, res), requestId);
   if (pathname === '/api/auth/logout' && req.method === 'POST') { sameOriginAllowed(req); return sendJson(res, 200, await logout(req, res), requestId); }
-  if (pathname === '/api/auth/session' && req.method === 'GET') return sendJson(res, 200, publicSession(await requireAuth(req)), requestId);
+  if (pathname === '/api/auth/session' && req.method === 'GET') {
+    const session = await renewSession(req, res, await requireAuth(req));
+    return sendJson(res, 200, {...publicSession(session), expiresAt: session.expiresAt.toISOString()}, requestId);
+  }
   if (pathname.startsWith('/api/')) await requireAuth(req);
   if (pathname === '/api/imports' && req.method === 'POST') { await checkMutation(req, res); return sendJson(res, 201, await persistImport(await readJson(req, maxImportPayload), req), requestId); }
   if (pathname === '/api/imports/status' && req.method === 'GET') return sendJson(res, 200, await latestImportStatus(), requestId);

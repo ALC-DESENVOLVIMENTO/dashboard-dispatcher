@@ -31,6 +31,10 @@ test('production server blocks admin mutation and internal files', async () => {
     assert.equal(login.status, 200);
     const cookie = login.headers.get('set-cookie')?.split(';')[0];
     assert.ok(cookie);
+    const renewedSession = await fetch(`${base}/api/auth/session`, {headers: {cookie}});
+    assert.equal(renewedSession.status, 200);
+    assert.match(renewedSession.headers.get('set-cookie') || '', /Max-Age=\d+/);
+    assert.ok((await renewedSession.json()).expiresAt);
     const dashboard = await fetch(`${base}/`, {headers: {cookie}});
     assert.equal(dashboard.status, 200);
     const mutation = await fetch(`${base}/api/imports`, {method: 'POST', headers: {'content-type': 'application/json', origin: base, cookie}, body: JSON.stringify({sourceType: 'DDS'})});
