@@ -29,6 +29,7 @@ test('record keys are deterministic and bonus amounts are policy constrained', (
   assert.equal(recordKey(row, 1), recordKey(row, 999));
   assert.equal(bonusCents(1000, 'ff'), 100000);
   assert.equal(bonusCents(333.33, 'spot'), 33333);
+  assert.equal(bonusCents(300, 'spot'), 30000);
   assert.throws(() => bonusCents(9999, 'ff'), /bonus-amount-not-in-policy/);
   assert.throws(() => bonusCents(10.005, 'spot'), /bonus-amount-invalid/);
 });
