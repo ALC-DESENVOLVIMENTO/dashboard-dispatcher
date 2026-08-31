@@ -98,13 +98,36 @@ nav a { font-size: 13px; }
 .data-table td { padding: 13px 8px; }
 .badge { font-size: 9px; }
 
-.lower-grid { align-items: stretch; }
+.lower-grid { align-items: stretch; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .lower-grid > .card { min-width: 0; overflow: hidden; }
 .lower-grid .card-head { gap: 12px; flex-wrap: wrap; }
 .lower-grid .secondary-button { flex-shrink: 0; }
+.lower-grid .table-scroll,
+.risk-grid .table-scroll { overflow-x: auto; }
 .lower-grid .data-table { width: 100%; table-layout: fixed; }
 .lower-grid .data-table th,
-.lower-grid .data-table td { overflow-wrap: anywhere; }
+.risk-card .data-table th {
+  padding-inline: 6px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+  vertical-align: bottom;
+  font-size: 9px;
+  letter-spacing: .25px;
+}
+.lower-grid .data-table td,
+.risk-card .data-table td {
+  padding-inline: 6px;
+  overflow-wrap: break-word;
+  word-break: normal;
+  line-height: 1.35;
+}
+.lower-grid .ranking-card:first-child .data-table th:nth-child(1) { width: 6%; }
+.lower-grid .ranking-card:first-child .data-table th:nth-child(2) { width: 30%; }
+.lower-grid .ranking-card:first-child .data-table th:nth-child(3) { width: 16%; }
+.lower-grid .ranking-card:first-child .data-table th:nth-child(4) { width: 13%; }
+.lower-grid .ranking-card:first-child .data-table th:nth-child(5) { width: 16%; }
+.lower-grid .ranking-card:first-child .data-table th:nth-child(6) { width: 19%; }
 .lower-grid .ranking-card:nth-child(2) .data-table th:nth-child(1) { width: 8%; }
 .lower-grid .ranking-card:nth-child(2) .data-table th:nth-child(2) { width: 15%; }
 .lower-grid .ranking-card:nth-child(2) .data-table th:nth-child(3) { width: 25%; }
@@ -113,13 +136,11 @@ nav a { font-size: 13px; }
 .lower-grid .ranking-card:nth-child(2) .data-table th:nth-child(6) { width: 10%; }
 .lower-grid .ranking-card:nth-child(2) .data-table th:nth-child(7) { width: 13%; }
 
-.risk-grid { align-items: stretch; }
+.risk-grid { align-items: stretch; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .risk-card { min-width: 0; overflow: hidden; }
 .risk-card .card-head { gap: 12px; flex-wrap: wrap; }
 .risk-card .secondary-button { flex-shrink: 0; }
 .risk-card .data-table { width: 100%; table-layout: fixed; }
-.risk-card .data-table th,
-.risk-card .data-table td { overflow-wrap: anywhere; }
 .risk-grid .risk-card:first-child .data-table th:nth-child(1) { width: 7%; }
 .risk-grid .risk-card:first-child .data-table th:nth-child(2) { width: 30%; }
 .risk-grid .risk-card:first-child .data-table th:nth-child(3) { width: 14%; }
@@ -135,8 +156,20 @@ nav a { font-size: 13px; }
 .risk-grid .risk-card:nth-child(2) .data-table th:nth-child(7) { width: 11%; }
 .risk-card .bad-count { color: #dc7272; }
 
+body[data-period-part="monthly"] .lower-grid .ranking-card:first-child .data-table { min-width: 860px; }
+body[data-period-part="monthly"] .lower-grid .ranking-card:first-child .data-table th:nth-child(1) { width: 5%; }
+body[data-period-part="monthly"] .lower-grid .ranking-card:first-child .data-table th:nth-child(2) { width: 20%; }
+body[data-period-part="monthly"] .lower-grid .ranking-card:first-child .data-table th:nth-child(3) { width: 12%; }
+body[data-period-part="monthly"] .lower-grid .ranking-card:first-child .data-table th:nth-child(4) { width: 9%; }
+body[data-period-part="monthly"] .lower-grid .ranking-card:first-child .data-table th:nth-child(5) { width: 12%; }
+body[data-period-part="monthly"] .lower-grid .ranking-card:first-child .data-table th:nth-child(6) { width: 12%; }
+body[data-period-part="monthly"] .lower-grid .ranking-card:first-child .data-table th:nth-child(7) { width: 8%; }
+body[data-period-part="monthly"] .lower-grid .ranking-card:first-child .data-table th:nth-child(8) { width: 9%; }
+body[data-period-part="monthly"] .lower-grid .ranking-card:first-child .data-table th:nth-child(9) { width: 13%; }
+
 @media (max-width: 1050px) {
   .main { max-width: none; }
+  .lower-grid, .risk-grid { grid-template-columns: 1fr; }
   .lower-grid > .card { overflow: visible; }
   .lower-grid .data-table, .risk-card .data-table { table-layout: auto; }
 }
