@@ -6,7 +6,7 @@
   'use strict';
 
   const bands = Object.freeze([
-    Object.freeze({label: '> 100%', min: 1, strict: true, payout: 1300}),
+    Object.freeze({label: 'Acima de 100%', min: 1, strict: true, payout: 1300}),
     Object.freeze({label: '100%', min: 1, strict: false, payout: 1000}),
     Object.freeze({label: '95%', min: .95, strict: false, payout: 700}),
     Object.freeze({label: '90%', min: .9, strict: false, payout: 350})

@@ -9,7 +9,7 @@ const SpotBonus = require('../spot-bonus.js');
 test('Frota Fixa paga R$ 1.300 somente acima de 100% de utilização', () => {
   assert.equal(FixedFleetBonus.payoutForUtilization(1.000001), 1300);
   assert.equal(FixedFleetBonus.payoutForUtilization(1.01), 1300);
-  assert.equal(FixedFleetBonus.bandForUtilization(1.000001)?.label, '> 100%');
+  assert.equal(FixedFleetBonus.bandForUtilization(1.000001)?.label, 'Acima de 100%');
 });
 
 test('Frota Fixa mantém as faixas nos valores de fronteira', () => {
