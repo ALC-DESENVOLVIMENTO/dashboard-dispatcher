@@ -25,3 +25,15 @@ test('a nova faixa de Frota Fixa não altera a regra Spot', () => {
   assert.equal(SpotBonus.bonusForCars(15).total, 1500);
   assert.equal(SpotBonus.bonusForCars(25).total, 2000);
 });
+
+test('Junho e Julho são recalculados pela mesma regra sem valor mensal em cache', () => {
+  const periods = {
+    '2026-06': [1.02, 1, .95],
+    '2026-07': [1.08, 1.000001, .9]
+  };
+  const totals = Object.fromEntries(Object.entries(periods).map(([month, utilizations]) => [
+    month,
+    utilizations.reduce((sum, utilization) => sum + FixedFleetBonus.payoutForUtilization(utilization), 0)
+  ]));
+  assert.deepEqual(totals, {'2026-06': 3000, '2026-07': 2950});
+});
