@@ -39,7 +39,7 @@ function isXptBase(value){return xptReference.excludedBases.has(baseNorm(canonic
 function setXptReference(data){const aliases=new Map(Object.entries(data?.baseAliases||{}).map(([from,to])=>[baseNorm(from),String(to).trim()]));const excluded=[...(data?.excludedBases||[])].map(base=>baseNorm(aliases.get(baseNorm(base))||base));xptReference={excludedBases:new Set(excluded),baseAliases:aliases}}
 setXptReference({excludedBases:['ARAPUTANGA - EMR14','ARAXA - EMG34','CACERES - EMR6','CHAPADAO DO SUL - EGO17','CONCEICAO DO MATO DENTRO - EMG26','GUANHAES - EMG37','GUAXUPE - EMG7','MINACU - EDF10','MOZARLANDIA - EGO11','PONTES E LACERDA - EMR16','SANTO ANTONIO DA PLATINA - EPR7'],baseAliases:{'RIBEIRAO PRETO - SSP4':'CRAVINHOS - SSP4','CRAVINHOS - SSP4':'CRAVINHOS - SSP4','RIBEIRAO PRETO - SSP57':'RIBEIRAO PRETO - SSP57'}});
 function driverLabel(row,limit=2){const names=Array.isArray(row?.driver_names)?row.driver_names.filter(Boolean):row?.driver_name?[row.driver_name]:[];return names.length?names.slice(0,limit).join(' · ')+(names.length>limit?` +${names.length-limit}`:''):'—'}
-function bonusBandLabel(row){if(state.mode==='spot'){const band=spotBandForCars(Number(row?.spot_cars||0));return band?`${band.cars} carros`:'Nenhuma'}const share=Number(row?.ff_share);if(!Number.isFinite(share))return 'Nenhuma';return share>=1?'100%':share>=.95?'95%':share>=.9?'90%':'Nenhuma'}
+function bonusBandLabel(row){if(state.mode==='spot'){const band=spotBandForCars(Number(row?.spot_cars||0));return band?`${band.cars} carros`:'Nenhuma'}return BonusFF.bandForUtilization(row?.ff_share)?.label||'Nenhuma'}
 function baseSortRows(rows){const spot=state.mode==='spot',bonuses=spot?spotMonthlyBonusMap():{};return rows.map(row=>{const detail=bonuses[row.base];return detail?{...row,spot_cars:detail.cars,spot_bonus:detail.bonus,spot_eligible_routes:detail.eligibleRoutes}:row}).sort((a,b)=>{const sort=state.baseSort||'ranking';if(sort==='name')return String(a.base).localeCompare(String(b.base),'pt-BR');if(sort==='worst'){const ads=Number(a.ff_ds),bds=Number(b.ff_ds);return (Number.isFinite(ads)?ads:Infinity)-(Number.isFinite(bds)?bds:Infinity)}if(spot){const av=sort==='ds'?Number(a.ff_ds):sort==='share'?Number(a.spot_cars||0):Number(a.spot_bonus||0),bv=sort==='ds'?Number(b.ff_ds):sort==='share'?Number(b.spot_cars||0):Number(b.spot_bonus||0);return bv-av||Number(b.ff_ds||0)-Number(a.ff_ds||0)}const av=sort==='ds'?Number(a.ff_ds):sort==='share'?Number(a.ff_share):payoutProxy(a),bv=sort==='ds'?Number(b.ff_ds):sort==='share'?Number(b.ff_share):payoutProxy(b);return (Number.isFinite(bv)?bv:-Infinity)-(Number.isFinite(av)?av:-Infinity)||Number(b.ff_ds||0)-Number(a.ff_ds||0)})}
 function baseToolbar(){const options=[['ranking','Ranking · melhor → pior'],['bonus','Bônus maior → menor'],['ds','DS médio maior → menor'],['share',state.mode==='spot'?'Média diária maior → menor':'Participação/utilização maior → menor'],['worst','Pior desempenho'],['name','Base A → Z']];return `<div class="filterbar base-filterbar"><input class="search-input" id="viewSearch" placeholder="Buscar por Base" value="${esc(state.query)}" /><label class="sort-control"><span>Ordenar</span><select id="baseSortSelect" class="filter-select">${options.map(([value,label])=>`<option value="${value}" ${state.baseSort===value?'selected':''}>${label}</option>`).join('')}</select></label></div>`}
 let summaryDriversCache={key:'',byBase:{}};
@@ -51,14 +51,11 @@ const FF_LOGIC_RULE = Object.freeze({
   plannedDays: 26,
   countedStatuses: Object.freeze(['PLACA BIPADA','RESERVA BIPADA']),
   minDs: 92,
-  utilizationBands: Object.freeze([
-    Object.freeze({min: 1, payout: 1000}),
-    Object.freeze({min: .95, payout: 700}),
-    Object.freeze({min: .9, payout: 350})
-  ])
+  utilizationBands: BonusFF.bands
 });
+function withCurrentFfRuleMarkup(markup){const marker='<div class="rule-list"><div class="rule-row"><span class="rule-check">✓</span><strong>100%</strong>',band=FF_LOGIC_RULE.utilizationBands[0],premium=`<div class="rule-row"><span class="rule-check">✓</span><strong>${esc(band.label)}</strong><span>utilização FF</span><b class="money">${money(band.payout)}</b></div>`;return markup.replace(marker,`<div class="rule-list">${premium}<div class="rule-row"><span class="rule-check">✓</span><strong>100%</strong>`)}
 function toast(message){const n=document.createElement('div');n.className='toast';n.textContent=message;document.body.append(n);setTimeout(()=>n.remove(),3200)}
-function payoutProxy(r){const ds=numericValue(r.ff_ds),share=numericValue(r.ff_share);if(!Number.isFinite(share)||!Number.isFinite(ds)||ds<FF_LOGIC_RULE.minDs)return 0;return FF_LOGIC_RULE.utilizationBands.find(b=>share>=b.min)?.payout||0}
+function payoutProxy(r){const ds=numericValue(r.ff_ds),share=numericValue(r.ff_share);if(!Number.isFinite(share)||!Number.isFinite(ds)||ds<FF_LOGIC_RULE.minDs)return 0;return BonusFF.payoutForUtilization(share)}
 function status(r){const ds=numericValue(r.ff_ds),share=numericValue(r.ff_share);if(!r.ff)return ['Sem rotas FF elegíveis','red-b'];if(!Number.isFinite(ds))return ['Aguardando DS do Mercado Livre','yellow-b'];if(!Number.isFinite(share))return ['Aguardando utilização FF','yellow-b'];if(ds<FF_LOGIC_RULE.minDs)return ['DS abaixo de 92%','red-b'];if(share>=.9)return ['Faixa atingida','green-b'];return ['Faixa não atingida','red-b']}
 function numericValue(value){return value===null||value===undefined||value===''?NaN:Number(value)}
 function routeDsStats(routes){const total=routes.length,eligible=routes.filter(r=>{const ds=numericValue(r.ds);return Number.isFinite(ds)&&ds>=.92}).length,notEligible=routes.filter(r=>{const ds=numericValue(r.ds);return Number.isFinite(ds)&&ds<.92}).length,awaiting=total-eligible-notEligible;return {total,eligible,notEligible,awaiting}}
@@ -294,13 +291,16 @@ comparisonDataForMonth=(month,useCurrent=false)=>{const routes=periodRows(state.
 // altera somente a divisão individual, nunca o valor total da faixa Spot.
 const comparisonDataForMonthBeforeSpotReconciliation=comparisonDataForMonth;
 comparisonDataForMonth=(month,useCurrent=false)=>comparisonDataForMonthBeforeSpotReconciliation(month,useCurrent).map(row=>{
-  if(state.mode!=='spot')return row;
+  if(state.mode!=='spot')return {...row,band:BonusFF.bandForUtilization(row.share)?.label||'Nenhuma'};
   const payout=BonusSpot.bonusForCars(row.cars);
   return {...row,band:payout.band?`${payout.band.cars} carros`:'Nenhuma',bonus:payout.total,status:payout.total>0?'Faixa atingida':row.status};
 });
 
+const rulesFFViewBeforeFf1300=rulesFFView;
+rulesFFView=()=>withCurrentFfRuleMarkup(rulesFFViewBeforeFf1300());
+
 const dashboardFFViewBeforePeriod=dashboardFFView;
-dashboardFFView=()=>dashboardFFViewBeforePeriod().replace(`DADOS REAIS · ${monthLabel(selectedDataMonth()).toUpperCase()}`,`DADOS REAIS · ${periodLabel().toUpperCase()}`).replaceAll('mês selecionado','período selecionado').replaceAll('no mês','no período');
+dashboardFFView=()=>withCurrentFfRuleMarkup(dashboardFFViewBeforePeriod().replace(`DADOS REAIS · ${monthLabel(selectedDataMonth()).toUpperCase()}`,`DADOS REAIS · ${periodLabel().toUpperCase()}`).replaceAll('mês selecionado','período selecionado').replaceAll('no mês','no período'));
 
 // O render original fazia o recorte apenas por mês. Este render final mantém o mesmo fluxo
 // e aplica o recorte quinzenal também às telas especiais (comparativo e notas fiscais).

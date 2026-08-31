@@ -18,7 +18,7 @@ O Spot usa a quantidade real de dias do período selecionado para calcular a mé
 4. Linhas de ambulância são desconsideradas quando `Cluster = ROTA`, mesmo que estejam marcadas como Frota Fixa ou Reserva FF.
 5. O portão de DS é `DS médio por rota >= 92%`.
 6. A utilização mensal é calculada como `rotas_utilizadas / rotas_FF_elegíveis`.
-7. A maior faixa atingida define o pagamento: 100% = R$ 1.000; 95% = R$ 700; 90% = R$ 350. Abaixo de 90% ou sem passar no DS = R$ 0.
+7. A maior faixa atingida define o pagamento: acima de 100% = R$ 1.300; exatamente 100% = R$ 1.000; 95% = R$ 700; 90% = R$ 350. Abaixo de 90% ou sem passar no DS = R$ 0.
 
 ## Reserva FF
 

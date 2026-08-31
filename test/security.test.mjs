@@ -27,6 +27,7 @@ test('rows are flat, bounded and safe to persist', () => {
 test('record keys are deterministic and bonus amounts are policy constrained', () => {
   const row = { rota: '123', data: '2026-07-01', placa: 'ABC-1234' };
   assert.equal(recordKey(row, 1), recordKey(row, 999));
+  assert.equal(bonusCents(1300, 'ff'), 130000);
   assert.equal(bonusCents(1000, 'ff'), 100000);
   assert.equal(bonusCents(333.33, 'spot'), 33333);
   assert.equal(bonusCents(300, 'spot'), 30000);
