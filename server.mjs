@@ -198,7 +198,10 @@ async function persistImport(payload, req) {
   const fileName = safeFileName(payload.fileName, 'importacao.xlsx'), extension = fileExtension(fileName); if (!['.xlsx', '.csv'].includes(extension)) throw new HttpError(400, 'file-extension-invalid');
   const fileData = decodeBase64(payload.fileBase64, maxImportFile), rows = Array.isArray(payload.rows) ? payload.rows.map(normalizeRow) : []; if (!rows.length || rows.length > maxRows) throw new HttpError(400, 'rows-invalid');
   const unique = new Map(); rows.forEach((row, index) => unique.set(recordKey(row, index), row)); const uniqueRows = [...unique.entries()];
-  const contentHash = createHash('sha256').update(sourceType).update(fileData).update(stableJson(uniqueRows.map(([, row]) => row))).digest('hex'); if (!consumeRateLimit(req, 'import')) throw new HttpError(429, 'rate-limit-exceeded');
+  const contentHash = createHash('sha256').update(sourceType).update(fileData).update(stableJson(uniqueRows.map(([, row]) => row))).digest('hex');
+  const alreadyImported = await pool.query('SELECT id FROM import_batches WHERE source_type=$1 AND content_hash=$2', [sourceType, contentHash]);
+  if (alreadyImported.rowCount) return {batchId: Number(alreadyImported.rows[0].id), rowsReceived: rows.length, recordsUpserted: 0, idempotent: true};
+  if (!consumeRateLimit(req, 'import')) throw new HttpError(429, 'rate-limit-exceeded');
   const client = await pool.connect(); try { await client.query('BEGIN'); const existing = await client.query('SELECT id FROM import_batches WHERE source_type=$1 AND content_hash=$2', [sourceType, contentHash]); if (existing.rowCount) { await client.query('COMMIT'); return {batchId: Number(existing.rows[0].id), rowsReceived: rows.length, recordsUpserted: 0, idempotent: true}; }
     const batch = await client.query('INSERT INTO import_batches (source_type,file_name,mime_type,file_size,row_count,file_data,content_hash) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id', [sourceType, fileName, extension === '.csv' ? 'text/csv' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', fileData.length, rows.length, fileData, contentHash]); const batchId = Number(batch.rows[0].id); let upserted = 0;
     for (let offset = 0; offset < uniqueRows.length; offset += 250) { const chunk = uniqueRows.slice(offset, offset + 250), values = [], placeholders = chunk.map(([key, row], index) => { const p = index * 4; values.push(sourceType, key, batchId, JSON.stringify(row)); return `($${p + 1},$${p + 2},$${p + 3},$${p + 4},NOW(),NULL)`; }); await client.query(`INSERT INTO import_records (source_type,record_key,batch_id,data,imported_at,deleted_at) VALUES ${placeholders.join(',')} ON CONFLICT (source_type,record_key) DO UPDATE SET batch_id=EXCLUDED.batch_id,data=EXCLUDED.data,imported_at=NOW(),deleted_at=NULL`, values); upserted += chunk.length; }
@@ -208,6 +211,28 @@ async function persistImport(payload, req) {
 
 async function latestImports() { if (!pool) return {sources: {}}; const result = await pool.query(`WITH latest AS (SELECT DISTINCT ON (source_type) id, source_type, file_name, imported_at FROM import_batches WHERE source_type = ANY($1::text[]) ORDER BY source_type, imported_at DESC, id DESC) SELECT l.source_type, l.file_name, l.imported_at, COALESCE(json_agg(r.data ORDER BY r.record_key) FILTER (WHERE r.data IS NOT NULL), '[]'::json) AS rows FROM latest l LEFT JOIN import_records r ON r.source_type=l.source_type AND r.deleted_at IS NULL GROUP BY l.source_type, l.file_name, l.imported_at`, [['DDS', 'MERCADO_LIVRE', 'LOGICA_FF', 'FF_LOCADORA']]); return {sources: Object.fromEntries(result.rows.map(row => [row.source_type, {fileName: row.file_name, importedAt: row.imported_at, rows: row.rows}]))}; }
 async function latestImportStatus() { if (!pool) return {sources: {}}; const result = await pool.query(`SELECT DISTINCT ON (source_type) source_type, file_name, imported_at, row_count FROM import_batches WHERE source_type = ANY($1::text[]) ORDER BY source_type, imported_at DESC, id DESC`, [['DDS', 'MERCADO_LIVRE', 'LOGICA_FF', 'FF_LOCADORA']]); return {sources: Object.fromEntries(result.rows.map(row => [row.source_type, {fileName: row.file_name, importedAt: row.imported_at, rowCount: row.row_count}]))}; }
+async function importCatalog() {
+  if (!pool) return {sources: {}};
+  const result = await pool.query(`SELECT r.source_type, r.data, b.file_name, b.imported_at
+    FROM import_records r
+    JOIN import_batches b ON b.id = r.batch_id
+    WHERE r.deleted_at IS NULL AND r.source_type = ANY($1::text[])
+    ORDER BY r.source_type, b.imported_at DESC`, [['DDS', 'MERCADO_LIVRE', 'LOGICA_FF', 'FF_LOCADORA']]);
+  const grouped = {};
+  for (const row of result.rows) {
+    const source = row.source_type;
+    const period = importedRowPeriod(row.data) || 'sem-periodo';
+    const sourceGroup = grouped[source] ||= {totalRows: 0, periods: {}};
+    const periodGroup = sourceGroup.periods[period] ||= {period, rows: 0, fileName: row.file_name, importedAt: row.imported_at};
+    sourceGroup.totalRows += 1;
+    periodGroup.rows += 1;
+    if (new Date(row.imported_at) > new Date(periodGroup.importedAt)) {
+      periodGroup.fileName = row.file_name;
+      periodGroup.importedAt = row.imported_at;
+    }
+  }
+  return {sources: Object.fromEntries(Object.entries(grouped).map(([source, value]) => [source, {totalRows: value.totalRows, periods: Object.values(value.periods).sort((a, b) => String(b.period).localeCompare(String(a.period)))}]))};
+}
 async function listTeamConfigs() { if (!pool) return {bases: {}}; const result = await pool.query('SELECT base, coordinator, dispatchers, ff_recipient FROM base_team_configs ORDER BY base'); return {bases: Object.fromEntries(result.rows.map(row => [row.base, {coordinator: row.coordinator, dispatchers: row.dispatchers || [], ffRecipient: row.ff_recipient || ''}]))}; }
 async function saveTeamConfig(payload, req) { if (!pool) throw new HttpError(503, 'database-not-configured'); const base = safeText(payload.base, 'base', 160, true), coordinator = safeText(payload.coordinator, 'coordinator', 160, false); if (!Array.isArray(payload.dispatchers) || payload.dispatchers.length > 100) throw new HttpError(400, 'dispatchers-invalid'); const dispatchers = [...new Set(payload.dispatchers.map(value => safeText(value, 'dispatcher', 160, true)))], ffRecipient = safeText(payload.ffRecipient, 'ff-recipient', 160, false); if (ffRecipient && !dispatchers.includes(ffRecipient)) throw new HttpError(400, 'ff-recipient-invalid'); const client = await pool.connect(); try { await client.query('BEGIN'); await client.query(`INSERT INTO base_team_configs (base,coordinator,dispatchers,ff_recipient,updated_at) VALUES ($1,$2,$3::jsonb,$4,NOW()) ON CONFLICT (base) DO UPDATE SET coordinator=EXCLUDED.coordinator,dispatchers=EXCLUDED.dispatchers,ff_recipient=EXCLUDED.ff_recipient,updated_at=NOW()`, [base, coordinator, JSON.stringify(dispatchers), ffRecipient]); await audit(client, 'team-config-upsert', 'base', base, req, {dispatcherCount: dispatchers.length, hasFfRecipient: Boolean(ffRecipient)}); await client.query('COMMIT'); return {base, coordinator, dispatchers, ffRecipient}; } catch (error) { await client.query('ROLLBACK'); throw error; } finally { client.release(); } }
 
@@ -266,6 +291,7 @@ async function routeRequest(req, res) {
   if (pathname.startsWith('/api/')) await requireAuth(req);
   if (pathname === '/api/imports' && req.method === 'POST') { await checkMutation(req, res); return sendJson(res, 201, await persistImport(await readJson(req, maxImportPayload), req), requestId); }
   if (pathname === '/api/imports/status' && req.method === 'GET') return sendJson(res, 200, await latestImportStatus(), requestId);
+  if (pathname === '/api/imports/catalog' && req.method === 'GET') return sendJson(res, 200, await importCatalog(), requestId);
   if (pathname === '/api/imports/latest' && req.method === 'GET') return sendJson(res, 200, await latestImports(), requestId);
   if (pathname === '/api/imports/period-summary' && req.method === 'GET') return sendJson(res, 200, await importPeriodSummary(url.searchParams.get('period') || ''), requestId);
   if (pathname === '/api/imports/remove-period' && req.method === 'POST') { await checkMutation(req, res); const body = await readJson(req, 1024); return sendJson(res, 200, await removeImportPeriod(safeText(body.period, 'period', 7, true), req), requestId); }
