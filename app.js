@@ -320,6 +320,17 @@ comparisonDataForMonth=(month,useCurrent=false)=>comparisonDataForMonthBeforeSpo
   return {...row,band:payout.band?`${payout.band.cars} carros`:'Nenhuma',bonus:payout.total,status:payout.total>0?'Faixa atingida':row.status};
 });
 
+// O comparativo segue o mesmo recorte escolhido no seletor de período.
+// Para uma quinzena em andamento, a referência é sempre a última quinzena
+// disponível do mês anterior, ou seja, a 2ª quinzena.
+function comparisonPeriodContext(){return BonusPeriod.comparisonPeriods(selectedDataMonth(),selectedPeriodPart())}
+function comparisonPeriodLabel(period){return period.part==='monthly'?`Mensal · ${monthLabel(period.month)}`:`${period.part==='2'?'2ª':'1ª'} Quinzena · ${monthLabel(period.month)}`}
+function comparisonDataForPart(month,part,useCurrent=false){const previousPart=state.periodPart;state.periodPart=part;try{return comparisonDataForMonth(month,useCurrent)}finally{state.periodPart=previousPart}}
+const comparisonRowsBeforePeriodContext=comparisonRows;
+comparisonRows=()=>{const context=comparisonPeriodContext(),currentMap=new Map(comparisonDataForPart(context.current.month,context.current.part,true).map(row=>[workspaceTeamKey(row.base),row])),priorMap=new Map(comparisonDataForPart(context.prior.month,context.prior.part,false).map(row=>[workspaceTeamKey(row.base),row])),keys=new Set([...currentMap.keys(),...priorMap.keys()]);return [...keys].map(key=>{const current=currentMap.get(key)||null,prior=priorMap.get(key)||null,dsDelta=current&&prior&&Number.isFinite(current.ds)&&Number.isFinite(prior.ds)?current.ds-prior.ds:null,bonusDelta=current&&prior?current.bonus-prior.bonus:null,totalDelta=current&&prior?current.total-prior.total:null;return {base:current?.base||prior?.base||key,current,prior,dsDelta,bonusDelta,totalDelta,status:dsDelta===null?'Sem histórico':dsDelta>=.5?'Evolução':dsDelta<=-.5?'Piora':'Estável'}}).filter(row=>{const status=state.comparisonStatus||'all';return status==='all'||row.status===status}).sort((a,b)=>{const sort=state.comparisonSort||'evolution';if(sort==='decline')return (a.dsDelta??Infinity)-(b.dsDelta??Infinity);if(sort==='bonus')return (b.current?.bonus||0)-(a.current?.bonus||0);if(sort==='volume')return (b.totalDelta??-Infinity)-(a.totalDelta??-Infinity)||String(a.base).localeCompare(String(b.base),'pt-BR');if(sort==='volumeDecline')return (a.totalDelta??Infinity)-(b.totalDelta??Infinity)||String(a.base).localeCompare(String(b.base),'pt-BR');if(sort==='name')return String(a.base).localeCompare(String(b.base),'pt-BR');return (b.dsDelta??-Infinity)-(a.dsDelta??-Infinity)})}
+const comparisonViewBeforePeriodContext=comparisonView;
+comparisonView=()=>{const context=comparisonPeriodContext(),content=comparisonViewBeforePeriodContext();return content.replace(`Evolução das bases de ${monthLabel(context.prior.month)} para ${monthLabel(context.current.month)}.`,`Evolução das bases de ${comparisonPeriodLabel(context.prior)} para ${comparisonPeriodLabel(context.current)}.`).replace(`Período atual: <b>${monthLabel(context.current.month)}</b>`,`Período atual: <b>${comparisonPeriodLabel(context.current)}</b>`).replace(`Período anterior: <b>${monthLabel(context.prior.month)}</b>`,`Período anterior: <b>${comparisonPeriodLabel(context.prior)}</b>`)};
+
 const rulesFFViewBeforeFf1300=rulesFFView;
 rulesFFView=()=>withCurrentFfRuleMarkup(rulesFFViewBeforeFf1300());
 

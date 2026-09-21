@@ -34,6 +34,21 @@
     return part === 'monthly';
   }
 
+  function previousMonth(month) {
+    const [year, monthNumber] = String(month || '').split('-').map(Number);
+    if (!year || !monthNumber) return '';
+    const date = new Date(Date.UTC(year, monthNumber - 2, 1));
+    return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
+  }
+
+  function comparisonPeriods(month, part) {
+    const selectedPart = part === 'monthly' ? 'monthly' : part === '2' ? '2' : '1';
+    return {
+      current: { month, part: selectedPart },
+      prior: { month: previousMonth(month), part: selectedPart === 'monthly' ? 'monthly' : '2' },
+    };
+  }
+
   function normalizedLabel(value) {
     return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
   }
@@ -83,6 +98,6 @@
     });
   }
 
-  global.BonusPeriod = Object.freeze({ bounds, contains, utilization, fixedFleetPlannedDays, showsFinancialDetails, isFinancialColumnLabel, isFinancialStatusLabel, baseRouteCounts, routeIdentifier, confirmedAmbulanceRows });
+  global.BonusPeriod = Object.freeze({ bounds, contains, utilization, fixedFleetPlannedDays, showsFinancialDetails, previousMonth, comparisonPeriods, isFinancialColumnLabel, isFinancialStatusLabel, baseRouteCounts, routeIdentifier, confirmedAmbulanceRows });
   if (typeof module !== 'undefined' && module.exports) module.exports = global.BonusPeriod;
 })(globalThis);

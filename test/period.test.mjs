@@ -24,6 +24,21 @@ test('segunda quinzena respeita o último dia de cada mês', () => {
   assert.equal(period.contains('2026-08-01', '2026-07', '2'), false);
 });
 
+test('comparativo quinzenal usa a última quinzena do mês anterior', () => {
+  assert.deepEqual(period.comparisonPeriods('2026-09', '1'), {
+    current: {month: '2026-09', part: '1'},
+    prior: {month: '2026-08', part: '2'},
+  });
+  assert.deepEqual(period.comparisonPeriods('2026-09', '2'), {
+    current: {month: '2026-09', part: '2'},
+    prior: {month: '2026-08', part: '2'},
+  });
+  assert.deepEqual(period.comparisonPeriods('2026-09', 'monthly'), {
+    current: {month: '2026-09', part: 'monthly'},
+    prior: {month: '2026-08', part: 'monthly'},
+  });
+});
+
 test('utilização FF usa os dias da quinzena selecionada', () => {
   assert.equal(period.fixedFleetPlannedDays(26, '1'), 13);
   assert.equal(period.fixedFleetPlannedDays(26, '2'), 13);
