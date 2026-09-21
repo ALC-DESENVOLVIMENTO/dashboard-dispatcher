@@ -49,6 +49,14 @@
     };
   }
 
+  function comparisonSituation(routeDelta) {
+    const delta = routeDelta === null || routeDelta === undefined || routeDelta === '' ? NaN : Number(routeDelta);
+    if (!Number.isFinite(delta)) return 'Sem histórico';
+    if (delta > 0) return 'Evolução';
+    if (delta < 0) return 'Piora';
+    return 'Estável';
+  }
+
   function normalizedLabel(value) {
     return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
   }
@@ -98,6 +106,6 @@
     });
   }
 
-  global.BonusPeriod = Object.freeze({ bounds, contains, utilization, fixedFleetPlannedDays, showsFinancialDetails, previousMonth, comparisonPeriods, isFinancialColumnLabel, isFinancialStatusLabel, baseRouteCounts, routeIdentifier, confirmedAmbulanceRows });
+  global.BonusPeriod = Object.freeze({ bounds, contains, utilization, fixedFleetPlannedDays, showsFinancialDetails, previousMonth, comparisonPeriods, comparisonSituation, isFinancialColumnLabel, isFinancialStatusLabel, baseRouteCounts, routeIdentifier, confirmedAmbulanceRows });
   if (typeof module !== 'undefined' && module.exports) module.exports = global.BonusPeriod;
 })(globalThis);

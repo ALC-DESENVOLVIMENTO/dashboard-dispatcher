@@ -39,6 +39,13 @@ test('comparativo quinzenal usa a última quinzena do mês anterior', () => {
   });
 });
 
+test('situação do comparativo segue a variação de rotas', () => {
+  assert.equal(period.comparisonSituation(5), 'Evolução');
+  assert.equal(period.comparisonSituation(-5), 'Piora');
+  assert.equal(period.comparisonSituation(0), 'Estável');
+  assert.equal(period.comparisonSituation(null), 'Sem histórico');
+});
+
 test('utilização FF usa os dias da quinzena selecionada', () => {
   assert.equal(period.fixedFleetPlannedDays(26, '1'), 13);
   assert.equal(period.fixedFleetPlannedDays(26, '2'), 13);

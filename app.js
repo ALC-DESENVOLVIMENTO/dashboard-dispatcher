@@ -483,6 +483,31 @@ render=()=>{
   applyPeriodFinancialPresentation();
 };
 
+// O comparativo usa volume de rotas para definir a situação; DS continua como métrica separada.
+const comparisonRowsByRouteVariation=comparisonRows;
+comparisonRows=()=>{
+  const previousStatus=state.comparisonStatus;
+  state.comparisonStatus='all';
+  let rows=[];
+  try{rows=comparisonRowsByRouteVariation().map(row=>({...row,status:BonusPeriod.comparisonSituation(row.totalDelta)}))}
+  finally{state.comparisonStatus=previousStatus}
+  const status=state.comparisonStatus||'all';
+  rows=rows.filter(row=>status==='all'||row.status===status);
+  const sort=state.comparisonSort||'evolution';
+  if(sort==='decline'||sort==='volumeDecline')return rows.sort((a,b)=>(a.totalDelta??Infinity)-(b.totalDelta??Infinity)||String(a.base).localeCompare(String(b.base),'pt-BR'));
+  if(sort==='bonus')return rows.sort((a,b)=>(b.current?.bonus||0)-(a.current?.bonus||0));
+  if(sort==='name')return rows.sort((a,b)=>String(a.base).localeCompare(String(b.base),'pt-BR'));
+  return rows.sort((a,b)=>(b.totalDelta??-Infinity)-(a.totalDelta??-Infinity)||String(a.base).localeCompare(String(b.base),'pt-BR'));
+};
+const comparisonViewByRouteVariation=comparisonView;
+comparisonView=()=>comparisonViewByRouteVariation()
+  .replace('Maior evolução de DS','Maior aumento de rotas')
+  .replace('Maior piora de DS','Maior redução de rotas')
+  .replace('DS aumentou pelo menos 0,5 ponto percentual','Rotas aumentaram em relação ao período anterior')
+  .replace('DS caiu pelo menos 0,5 ponto percentual','Rotas diminuíram em relação ao período anterior')
+  .replace('Variação inferior a 0,5 ponto percentual','Mesmo volume de rotas nos dois períodos')
+  .replace('A variação de DS é calculada em pontos percentuais.','A situação é definida pela variação do volume de rotas. O DS permanece disponível como indicador de desempenho.');
+
 async function bootstrap(){
   try{
     await hydrateSession();
