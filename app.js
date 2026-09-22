@@ -408,6 +408,22 @@ basesView=()=>{
   return html;
 };
 
+const basesViewWithSpotDailyAverage=basesView;
+basesView=()=>{
+  let html=basesViewWithSpotDailyAverage();
+  if(state.mode!=='spot')return html;
+  html=html.replace('<th>AMB. EXCLUÍDAS</th><th>DS SPOT</th>','<th>AMB. EXCLUÍDAS</th><th title="Rotas elegíveis ÷ 15 dias nas quinzenas; dias do mês na visão mensal">MÉDIA CARROS/DIA</th><th>DS SPOT</th>');
+  const filtered=state.summary.filter(row=>String(row.base||'').toLowerCase().includes(state.query.toLowerCase()));
+  const rows=baseSortRows(filtered),days=selectedPeriodPart()==='monthly'?selectedPeriodDays():15;
+  let index=0;
+  return html.replace(/<td>(\d+)<\/td><td class="ds">/g,(match,ambulances)=>{
+    const row=rows[index++];
+    if(!row)return match;
+    const eligible=baseOperationalMetric(row.base).eligible,average=days?eligible/days:0;
+    return '<td>'+ambulances+'</td><td>'+average.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'</td><td class="ds">';
+  });
+};
+
 const workspaceSaveTeamWithRole=workspaceSaveTeam;
 workspaceSaveTeam=(base,ffRecipient)=>{if(!roleCan('canManageTeams')){accessDenied();return}return workspaceSaveTeamWithRole(base,ffRecipient)};
 const workspaceInvoiceUploadWithRole=workspaceInvoiceUpload;
