@@ -4,6 +4,7 @@ import { extname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash, randomBytes, randomUUID, scryptSync, timingSafeEqual } from 'node:crypto';
 import pg from 'pg';
+import { createClient } from 'redis';
 import fixedFleetBonus from './ff-bonus.js';
 import spotBonus from './spot-bonus.js';
 
@@ -28,6 +29,24 @@ const pool = process.env.DATABASE_URL ? new Pool({
   ssl: process.env.DATABASE_SSL === 'disable' ? false : process.env.DATABASE_URL.includes('railway.internal') ? false : {rejectUnauthorized: process.env.DATABASE_SSL_REJECT_UNAUTHORIZED !== 'false'},
   max: Number(process.env.DB_POOL_MAX || 5), connectionTimeoutMillis: Number(process.env.DB_CONNECTION_TIMEOUT_MS || 5000), idleTimeoutMillis: Number(process.env.DB_IDLE_TIMEOUT_MS || 30000)
 }) : null;
+const redis = process.env.REDIS_URL ? createClient({
+  url: process.env.REDIS_URL,
+  socket: {
+    connectTimeout: Number(process.env.REDIS_CONNECT_TIMEOUT_MS || 750),
+    reconnectStrategy: retries => retries > 1 ? new Error('Redis temporarily unavailable') : Math.min(retries * 150, 300)
+  }
+}) : null;
+let redisConnectPromise = null;
+let redisUnavailableUntil = 0;
+let lastRedisWarningAt = 0;
+const cacheLoads = new Map();
+if (redis) redis.on('error', () => {
+  redisUnavailableUntil = Date.now() + 5000;
+  if (Date.now() - lastRedisWarningAt > 60000) {
+    lastRedisWarningAt = Date.now();
+    console.warn(JSON.stringify({event: 'redis-connection-unavailable'}));
+  }
+});
 
 class HttpError extends Error { constructor(status, code) { super(code); this.status = status; this.code = code; } }
 
@@ -36,12 +55,48 @@ const rateLimits = {read: {limit: 120, windowMs: 60000}, mutation: {limit: 10, w
 const memorySessions = new Map();
 let dispatcherReferencePromise;
 let lastSessionCleanupAt = 0;
+async function redisReady() {
+  if (!redis) return false;
+  if (redis.isReady) return true;
+  if (Date.now() < redisUnavailableUntil) return false;
+  if (!redis.isOpen) {
+    if (!redisConnectPromise) redisConnectPromise = redis.connect().catch(() => false).finally(() => { redisConnectPromise = null; });
+    const connected = await redisConnectPromise;
+    if (!connected && !redis.isReady) redisUnavailableUntil = Date.now() + 5000;
+  }
+  return Boolean(redis.isReady);
+}
+async function cachedJson(key, ttlSeconds, load) {
+  if (await redisReady()) {
+    try { const value = await redis.get(key); if (value !== null) return JSON.parse(value); } catch { /* Cache outage falls through to PostgreSQL. */ }
+  }
+  if (cacheLoads.has(key)) return cacheLoads.get(key);
+  const pending = (async () => {
+    const value = await load();
+    if (await redisReady()) {
+      try { await redis.set(key, JSON.stringify(value), {EX: ttlSeconds}); } catch { /* Cache outage does not affect the response. */ }
+    }
+    return value;
+  })().finally(() => cacheLoads.delete(key));
+  cacheLoads.set(key, pending);
+  return pending;
+}
+async function invalidateCache(...keys) {
+  if (!keys.length || !(await redisReady())) return;
+  try { await redis.del(keys); } catch { /* Cache outage does not affect committed writes. */ }
+}
 function clientIp(req) {
   if (process.env.TRUST_PROXY === 'true') { const forwarded = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim(); if (forwarded) return forwarded.slice(0, 80); }
   return String(req.socket.remoteAddress || 'unknown').slice(0, 80);
 }
-function consumeRateLimit(req, category) {
+async function consumeRateLimit(req, category) {
   const policy = rateLimits[category] || rateLimits.read, sessionToken = category === 'auth' ? '' : cookieValue(req, authCookieName), identity = /^[A-Za-z0-9_-]{40,}$/.test(sessionToken) ? `session:${sessionHash(sessionToken)}` : `ip:${clientIp(req)}`, key = `${category}:${identity}`, now = Date.now(), current = rateBuckets.get(key);
+  if (await redisReady()) {
+    try {
+      const count = Number(await redis.eval("local n=redis.call('INCR',KEYS[1]); if n==1 then redis.call('PEXPIRE',KEYS[1],ARGV[1]) end; return n", {keys:[`bonus:ratelimit:${key}`], arguments:[String(policy.windowMs)]}));
+      return count <= policy.limit;
+    } catch { /* Keep the process-local limiter as a fallback. */ }
+  }
   if (!current || now - current.startedAt >= policy.windowMs) { rateBuckets.set(key, {startedAt: now, count: 1}); return true; }
   current.count += 1; return current.count <= policy.limit;
 }
@@ -135,8 +190,8 @@ async function currentSession(req) {
 async function requireAuth(req) { const session = await currentSession(req); if (!session) throw new HttpError(401, 'authentication-required'); req.auth = session; return session; }
 async function requireRole(req, allowedRoles) { const session = req.auth || await requireAuth(req); if (!allowedRoles.includes(session.role)) throw new HttpError(403, 'access-denied'); return session; }
 function sameOriginAllowed(req) { const origin = String(req.headers.origin || ''), appOrigin = String(process.env.APP_ORIGIN || '').replace(/\/$/, ''); if (isProduction && !appOrigin) throw new HttpError(503, 'origin-not-configured'); if (origin && appOrigin && origin !== appOrigin) throw new HttpError(403, 'origin-not-allowed'); }
-async function checkPrivateRead(req, allowedRoles) { await requireRole(req, allowedRoles); if (!privateAdminReadAllowed(req)) throw new HttpError(403, 'administrative-read-restricted'); if (!consumeRateLimit(req, 'read')) throw new HttpError(429, 'rate-limit-exceeded'); }
-async function checkMutation(req, res, allowedRoles = ['manager']) { await requireRole(req, allowedRoles); sameOriginAllowed(req); if (!mutationAllowed(req)) { res.setHeader('Retry-After', '3600'); throw new HttpError(403, 'administrative-operation-restricted'); } if (!consumeRateLimit(req, 'mutation')) throw new HttpError(429, 'rate-limit-exceeded'); }
+async function checkPrivateRead(req, allowedRoles) { await requireRole(req, allowedRoles); if (!privateAdminReadAllowed(req)) throw new HttpError(403, 'administrative-read-restricted'); if (!await consumeRateLimit(req, 'read')) throw new HttpError(429, 'rate-limit-exceeded'); }
+async function checkMutation(req, res, allowedRoles = ['manager']) { await requireRole(req, allowedRoles); sameOriginAllowed(req); if (!mutationAllowed(req)) { res.setHeader('Retry-After', '3600'); throw new HttpError(403, 'administrative-operation-restricted'); } if (!await consumeRateLimit(req, 'mutation')) throw new HttpError(429, 'rate-limit-exceeded'); }
 async function audit(client, action, resourceType, resourceKey, req, details = {}) { await client.query('INSERT INTO audit_events (id,action,resource_type,resource_key,request_id,ip,details) VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb)', [randomUUID(), action, resourceType, String(resourceKey || ''), req.requestId, clientIp(req), JSON.stringify({...details, username: req.auth?.username || null, role: req.auth?.role || null})]); }
 
 async function initDatabase() {
@@ -169,7 +224,7 @@ async function initDatabase() {
 
 async function login(payload, req, res) {
   if (!authPasswordConfigured()) throw new HttpError(503, 'authentication-not-configured');
-  if (!consumeRateLimit(req, 'auth')) throw new HttpError(429, 'rate-limit-exceeded');
+  if (!await consumeRateLimit(req, 'auth')) throw new HttpError(429, 'rate-limit-exceeded');
   sameOriginAllowed(req);
   const username = safeUsername(payload.username), password = typeof payload.password === 'string' ? payload.password : '';
   const user = configuredUser(username);
@@ -201,7 +256,7 @@ async function persistImport(payload, req) {
   const contentHash = createHash('sha256').update(sourceType).update(fileData).update(stableJson(uniqueRows.map(([, row]) => row))).digest('hex');
   const alreadyImported = await pool.query('SELECT id FROM import_batches WHERE source_type=$1 AND content_hash=$2', [sourceType, contentHash]);
   if (alreadyImported.rowCount) return {batchId: Number(alreadyImported.rows[0].id), rowsReceived: rows.length, recordsUpserted: 0, idempotent: true};
-  if (!consumeRateLimit(req, 'import')) throw new HttpError(429, 'rate-limit-exceeded');
+  if (!await consumeRateLimit(req, 'import')) throw new HttpError(429, 'rate-limit-exceeded');
   const client = await pool.connect(); try { await client.query('BEGIN'); const existing = await client.query('SELECT id FROM import_batches WHERE source_type=$1 AND content_hash=$2', [sourceType, contentHash]); if (existing.rowCount) { await client.query('COMMIT'); return {batchId: Number(existing.rows[0].id), rowsReceived: rows.length, recordsUpserted: 0, idempotent: true}; }
     const batch = await client.query('INSERT INTO import_batches (source_type,file_name,mime_type,file_size,row_count,file_data,content_hash) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id', [sourceType, fileName, extension === '.csv' ? 'text/csv' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', fileData.length, rows.length, fileData, contentHash]); const batchId = Number(batch.rows[0].id); let upserted = 0;
     for (let offset = 0; offset < uniqueRows.length; offset += 250) { const chunk = uniqueRows.slice(offset, offset + 250), values = [], placeholders = chunk.map(([key, row], index) => { const p = index * 4; values.push(sourceType, key, batchId, JSON.stringify(row)); return `($${p + 1},$${p + 2},$${p + 3},$${p + 4},NOW(),NULL)`; }); await client.query(`INSERT INTO import_records (source_type,record_key,batch_id,data,imported_at,deleted_at) VALUES ${placeholders.join(',')} ON CONFLICT (source_type,record_key) DO UPDATE SET batch_id=EXCLUDED.batch_id,data=EXCLUDED.data,imported_at=NOW(),deleted_at=NULL`, values); upserted += chunk.length; }
@@ -279,7 +334,7 @@ async function downloadInvoice(token, res) { if (!pool) throw new HttpError(503,
 async function archiveInvoice(token, req) { if (!pool) throw new HttpError(503, 'database-not-configured'); if (!/^[a-f0-9-]{36}$/i.test(token)) throw new HttpError(400, 'file-token-invalid'); const client = await pool.connect(); try { await client.query('BEGIN'); const result = await client.query('UPDATE invoices SET deleted_at=NOW() WHERE public_token=$1 AND deleted_at IS NULL RETURNING public_token', [token]); if (!result.rowCount) throw new HttpError(404, 'not-found'); await audit(client, 'invoice-archive', 'invoice', token, req); await client.query('COMMIT'); return {archived: true}; } catch (error) { await client.query('ROLLBACK'); throw error; } finally { client.release(); } }
 
 async function routeRequest(req, res) {
-  const requestId = randomUUID(); req.requestId = requestId; const url = new URL(req.url || '/', 'http://localhost'), pathname = url.pathname; if (!consumeRateLimit(req, 'read')) throw new HttpError(429, 'rate-limit-exceeded');
+  const requestId = randomUUID(); req.requestId = requestId; const url = new URL(req.url || '/', 'http://localhost'), pathname = url.pathname; if (!await consumeRateLimit(req, 'read')) throw new HttpError(429, 'rate-limit-exceeded');
   if (pathname === '/health' && req.method === 'GET') return sendJson(res, 200, {status: 'ok'}, requestId);
   if (pathname === '/api/db-health') throw new HttpError(404, 'not-found');
   if (pathname === '/api/auth/login' && req.method === 'POST') return sendJson(res, 200, await login(await readJson(req, 16 * 1024), req, res), requestId);
@@ -289,18 +344,18 @@ async function routeRequest(req, res) {
     return sendJson(res, 200, {...publicSession(session), expiresAt: session.expiresAt.toISOString()}, requestId);
   }
   if (pathname.startsWith('/api/')) await requireAuth(req);
-  if (pathname === '/api/imports' && req.method === 'POST') { await checkMutation(req, res); return sendJson(res, 201, await persistImport(await readJson(req, maxImportPayload), req), requestId); }
-  if (pathname === '/api/imports/status' && req.method === 'GET') return sendJson(res, 200, await latestImportStatus(), requestId);
-  if (pathname === '/api/imports/catalog' && req.method === 'GET') return sendJson(res, 200, await importCatalog(), requestId);
-  if (pathname === '/api/imports/latest' && req.method === 'GET') return sendJson(res, 200, await latestImports(), requestId);
-  if (pathname === '/api/imports/period-summary' && req.method === 'GET') return sendJson(res, 200, await importPeriodSummary(url.searchParams.get('period') || ''), requestId);
-  if (pathname === '/api/imports/remove-period' && req.method === 'POST') { await checkMutation(req, res); const body = await readJson(req, 1024); return sendJson(res, 200, await removeImportPeriod(safeText(body.period, 'period', 7, true), req), requestId); }
-  if (pathname === '/api/teams' && req.method === 'GET') { await requireRole(req, ['manager', 'coordinator', 'dispatcher']); return sendJson(res, 200, await listTeamConfigs(), requestId); }
-  if (pathname === '/api/teams' && req.method === 'POST') { await checkMutation(req, res); return sendJson(res, 201, await saveTeamConfig(await readJson(req, 2 * 1024 * 1024), req), requestId); }
-  if (pathname === '/api/invoices' && req.method === 'GET') { await checkPrivateRead(req, ['manager', 'coordinator']); return sendJson(res, 200, await listInvoices(), requestId); }
-  if (pathname === '/api/invoices' && req.method === 'POST') { await checkMutation(req, res, ['manager', 'coordinator']); return sendJson(res, 201, await saveInvoice(await readJson(req, 15 * 1024 * 1024), req), requestId); }
+  if (pathname === '/api/imports' && req.method === 'POST') { await checkMutation(req, res); const payload = await readJson(req, maxImportPayload), result = await persistImport(payload, req); if (!result.idempotent) { const periodKeys = [...new Set((payload.rows || []).map(importedRowPeriod).filter(Boolean))].map(period => 'bonus:cache:imports:period:' + period); await invalidateCache('bonus:cache:imports:status:v1', 'bonus:cache:imports:catalog:v1', 'bonus:cache:imports:latest:v1', ...periodKeys); } return sendJson(res, 201, result, requestId); }
+  if (pathname === '/api/imports/status' && req.method === 'GET') return sendJson(res, 200, await cachedJson('bonus:cache:imports:status:v1', 60, latestImportStatus), requestId);
+  if (pathname === '/api/imports/catalog' && req.method === 'GET') return sendJson(res, 200, await cachedJson('bonus:cache:imports:catalog:v1', 60, importCatalog), requestId);
+  if (pathname === '/api/imports/latest' && req.method === 'GET') return sendJson(res, 200, await cachedJson('bonus:cache:imports:latest:v1', 60, latestImports), requestId);
+  if (pathname === '/api/imports/period-summary' && req.method === 'GET') { const period = url.searchParams.get('period') || ''; return sendJson(res, 200, await cachedJson('bonus:cache:imports:period:' + period, 60, () => importPeriodSummary(period)), requestId); }
+  if (pathname === '/api/imports/remove-period' && req.method === 'POST') { await checkMutation(req, res); const body = await readJson(req, 1024), result = await removeImportPeriod(safeText(body.period, 'period', 7, true), req); await invalidateCache('bonus:cache:imports:status:v1', 'bonus:cache:imports:catalog:v1', 'bonus:cache:imports:latest:v1', 'bonus:cache:imports:period:' + body.period); return sendJson(res, 200, result, requestId); }
+  if (pathname === '/api/teams' && req.method === 'GET') { await requireRole(req, ['manager', 'coordinator', 'dispatcher']); return sendJson(res, 200, await cachedJson('bonus:cache:teams:v1', 60, listTeamConfigs), requestId); }
+  if (pathname === '/api/teams' && req.method === 'POST') { await checkMutation(req, res); const result = await saveTeamConfig(await readJson(req, 2 * 1024 * 1024), req); await invalidateCache('bonus:cache:teams:v1'); return sendJson(res, 201, result, requestId); }
+  if (pathname === '/api/invoices' && req.method === 'GET') { await checkPrivateRead(req, ['manager', 'coordinator']); return sendJson(res, 200, await cachedJson('bonus:cache:invoices:v1', 60, listInvoices), requestId); }
+  if (pathname === '/api/invoices' && req.method === 'POST') { await checkMutation(req, res, ['manager', 'coordinator']); const result = await saveInvoice(await readJson(req, 15 * 1024 * 1024), req); await invalidateCache('bonus:cache:invoices:v1'); return sendJson(res, 201, result, requestId); }
   const invoiceMatch = pathname.match(/^\/api\/invoices\/([a-f0-9-]{36})\/file$/i); if (invoiceMatch && req.method === 'GET') { await checkPrivateRead(req, ['manager', 'coordinator']); return downloadInvoice(invoiceMatch[1], res); }
-  const invoiceArchiveMatch = pathname.match(/^\/api\/invoices\/([a-f0-9-]{36})$/i); if (invoiceArchiveMatch && req.method === 'DELETE') { await checkMutation(req, res); return sendJson(res, 200, await archiveInvoice(invoiceArchiveMatch[1], req), requestId); }
+  const invoiceArchiveMatch = pathname.match(/^\/api\/invoices\/([a-f0-9-]{36})$/i); if (invoiceArchiveMatch && req.method === 'DELETE') { await checkMutation(req, res); const result = await archiveInvoice(invoiceArchiveMatch[1], req); await invalidateCache('bonus:cache:invoices:v1'); return sendJson(res, 200, result, requestId); }
   const file = publicPath(pathname); if (!file) throw new HttpError(404, 'not-found');
   if ((pathname === '/' || pathname === '/index.html') && !(await currentSession(req))) { res.statusCode = 302; res.setHeader('Location', '/login.html'); return res.end(); }
   const publicWithoutAuth = new Set(['/login.html', '/login.js', '/alc-logo.png', '/favicon.png']);

@@ -9,7 +9,8 @@
     "test": "node --test"
   },
   "dependencies": {
-    "pg": "^8.16.3"
+    "pg": "^8.16.3",
+    "redis": "^6.2.1"
   },
   "engines": {
     "node": ">=20"
